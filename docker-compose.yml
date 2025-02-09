@@ -1,0 +1,48 @@
+services:
+  dev-db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: sewkito
+      POSTGRES_PASSWORD: 123
+      POSTGRES_DB: gatherpay
+    ports:
+      - '5434:5432'
+    networks:
+      - gatherpay
+    volumes:
+      - postgres_dev_data:/var/lib/postgresql/data
+
+  test-db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: sewkito
+      POSTGRES_PASSWORD: 123
+      POSTGRES_DB: gatherpay
+    ports:
+      - '5435:5432'
+    networks:
+      - gatherpay
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - '6379:6379'
+    networks:
+      - gatherpay
+    volumes:
+      - redis_dev_data:/data
+
+  test-redis:
+    image: redis:7-alpine
+    ports:
+      - '6380:6379'
+    networks:
+      - gatherpay
+
+networks:
+  gatherpay:
+    driver: bridge
+
+volumes:
+  postgres_dev_data: # Named volume for PostgreSQL dev data persistence
+  redis_dev_data: # Named volume for Redis data persistence
