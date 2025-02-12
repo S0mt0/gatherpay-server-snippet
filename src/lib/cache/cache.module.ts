@@ -4,7 +4,7 @@ import { ConfigService } from '@nestjs/config';
 import { Cacheable, CacheableMemory } from 'cacheable';
 import KeyvGzip from '@keyv/compress-gzip';
 
-import { CACHE_INSTANCE, REDIS_CLOUD_URL } from '../constants';
+import { CACHE_INSTANCE, REDIS_CLOUD_URL, TIME_IN } from '../constants';
 import { CacheService } from './cache.service';
 
 @Global()
@@ -22,7 +22,7 @@ import { CacheService } from './cache.service';
           compression: new KeyvGzip(),
         });
 
-        return new Cacheable({ primary, secondary, ttl: '4h' });
+        return new Cacheable({ primary, secondary, ttl: TIME_IN.days[1] });
       },
 
       inject: [ConfigService],

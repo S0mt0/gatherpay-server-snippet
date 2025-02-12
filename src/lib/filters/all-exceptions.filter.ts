@@ -28,14 +28,12 @@ export class AllExceptionsFilter extends BaseExceptionFilter {
     const response = ctx.getResponse<Response>();
     const request = ctx.getRequest<Request>();
 
-    console.log('[exception]: ', exception);
-
     const errorResponse: TAppErrorResponse = {
       statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
-      path: request.url,
-      method: request.method,
       response: 'Internal Server Error',
       timestamp: new Date().toISOString(),
+      path: request.url,
+      method: request.method,
     };
 
     if (exception instanceof HttpException) {
@@ -55,15 +53,12 @@ export class AllExceptionsFilter extends BaseExceptionFilter {
 
     if (exception instanceof UniqueConstraintError) {
       errorResponse.statusCode = HttpStatus.CONFLICT;
-      errorResponse.response =
-        exception.message.replaceAll(/\n/g, '') ||
-        'Duplicate value detected in database';
+      errorResponse.response = exception.errors.map((err) => err.message);
     }
 
     if (exception instanceof ValidationError) {
       errorResponse.statusCode = HttpStatus.UNPROCESSABLE_ENTITY;
-      errorResponse.response =
-        exception.message.replaceAll(/\n/g, '') || 'Invalid entity payload.';
+      errorResponse.response = exception.errors.map((err) => err.message);
     }
 
     response.status(errorResponse.statusCode).json(errorResponse);

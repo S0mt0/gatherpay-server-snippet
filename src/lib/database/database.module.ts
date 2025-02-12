@@ -22,13 +22,8 @@ import { DATABASE_URL, NODE_ENV } from '../constants';
           dialect: 'postgres',
           uri: configService.get<string>(DATABASE_URL),
           autoLoadModels: true,
-          synchronize: !isProduction, // Disable in production and use migrations instead
+          synchronize: !isProduction, // In production, use migrations instead
           logging: !isProduction ? console.log : false,
-
-          retry: {
-            max: 10,
-            timeout: 5000,
-          },
 
           dialectOptions: {
             statement_timeout: 30000,

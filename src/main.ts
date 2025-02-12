@@ -1,5 +1,5 @@
 import { HttpAdapterHost, NestFactory } from '@nestjs/core';
-import { ValidationPipe } from '@nestjs/common';
+import { HttpStatus, ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import helmet from 'helmet';
 
@@ -13,15 +13,22 @@ async function bootstrap() {
   app.setGlobalPrefix('api/v1');
 
   const { httpAdapter } = app.get(HttpAdapterHost);
-
   app.useGlobalFilters(new AllExceptionsFilter(httpAdapter));
-  app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
 
-  app.use(helmet);
+  app.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: true,
+      transform: true,
+      errorHttpStatusCode: HttpStatus.UNPROCESSABLE_ENTITY,
+    }),
+  );
+
+  app.use(helmet());
   app.enableCors(corsOptions);
 
   const config = app.get(ConfigService);
 
   await app.listen(config.get(PORT, 8000));
 }
+
 bootstrap();

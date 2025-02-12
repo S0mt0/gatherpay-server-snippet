@@ -17,6 +17,7 @@ module.exports = {
         password: hashedPassword,
         terms_of_service: true,
         joinedAt: new Date(),
+        updatedAt: new Date(),
       },
       {
         id: uuidv4(),
@@ -26,6 +27,7 @@ module.exports = {
         password: hashedPassword,
         terms_of_service: true,
         joinedAt: new Date(),
+        updatedAt: new Date(),
       },
       {
         id: uuidv4(),
@@ -35,6 +37,7 @@ module.exports = {
         password: hashedPassword,
         terms_of_service: true,
         joinedAt: new Date(),
+        updatedAt: new Date(),
       },
     ]);
   },

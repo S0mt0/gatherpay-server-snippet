@@ -7,11 +7,11 @@ export class DatabaseService implements OnApplicationBootstrap {
 
   async onApplicationBootstrap() {
     try {
-      await this.sequelize.authenticate(); // Test database connection
+      await this.sequelize.authenticate();
       console.log('Database connection established successfully🗼');
     } catch (error) {
       console.error('Unable to connect to the database⚠️:', error);
-      process.exit(1); // Exit the application if the connection fails
+      process.exit(1);
     }
   }
 }

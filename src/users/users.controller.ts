@@ -5,10 +5,8 @@ import {
   Body,
   Patch,
   Param,
-  Delete,
+  // Delete,
   ParseIntPipe,
-  Query,
-  ParseEnumPipe,
 } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
@@ -20,32 +18,29 @@ export class UsersController {
 
   @Post()
   create(@Body() createUserDto: CreateUserDto) {
-    return '';
+    return this.usersService.create(createUserDto);
   }
 
   @Get()
-  findAll(
-    @Query('role', new ParseEnumPipe(['i', 'o'], {}))
-    role?: string,
-  ) {
-    return '';
+  findAll() {
+    return this.usersService.findAll();
   }
 
-  @Get(':id')
-  findOne(@Param('id') id: string) {
-    return '';
-  }
+  // @Get(':id')
+  // findOne(@Param('id') id: string) {
+  //   return '';
+  // }
 
   @Patch(':id')
   update(
     @Param('id', ParseIntPipe) id: number,
     @Body() updateUserDto: UpdateUserDto,
   ) {
-    return '';
+    return updateUserDto;
   }
 
-  @Delete(':id')
-  remove(@Param('id') id: string) {
-    return '';
-  }
+  // @Delete(':id')
+  // remove(@Param('id') id: string) {
+  //   return '';
+  // }
 }

@@ -6,8 +6,8 @@
   "private": true,
   "license": "UNLICENSED",
   "scripts": {
-    "db:dev:rm": "docker compose rm dev-db redis -s -f -v",
-    "db:dev:up": "docker compose up dev-db redis -d",
+    "db:dev:rm": "docker compose rm dev-db redis pgadmin -s -f -v",
+    "db:dev:up": "docker compose up dev-db redis pgadmin -d",
     "db:dev:restart": "yarn db:dev:rm && yarn db:dev:up",
     "db:test:rm": "docker compose rm test-db test-redis -s -f -v",
     "db:test:up": "docker compose up test-db test-redis -d",
@@ -69,6 +69,7 @@
     "google-auth-library": "^9.15.1",
     "hbs": "^4.2.0",
     "helmet": "^8.0.0",
+    "ip2location-nodejs": "^9.6.3",
     "lodash": "^4.17.21",
     "passport": "^0.7.0",
     "passport-google-oauth": "^2.0.0",

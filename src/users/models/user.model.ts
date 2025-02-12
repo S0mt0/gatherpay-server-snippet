@@ -7,7 +7,7 @@ import {
   Model,
   Table,
 } from 'sequelize-typescript';
-import argon from 'argon2';
+import * as argon from 'argon2';
 
 @Table({
   timestamps: true,
@@ -43,12 +43,29 @@ export class User extends Model {
   @Column({
     type: DataType.STRING,
     allowNull: false,
-    unique: true,
+    unique: {
+      msg: 'Email taken, try again.',
+      name: 'email',
+    },
+    validate: {
+      isEmail: { msg: 'Invalid email' },
+    },
   })
   @Index
   readonly email: string;
 
-  @Column({ type: DataType.BOOLEAN, defaultValue: true, allowNull: false })
+  @Column({
+    type: DataType.BOOLEAN,
+    defaultValue: false,
+    allowNull: false,
+    validate: {
+      isTrue(value: boolean) {
+        if (value !== true) {
+          throw new Error('You must accept the terms of service.');
+        }
+      },
+    },
+  })
   terms_of_service: boolean;
 
   async verifyPassword(password: string): Promise<boolean> {

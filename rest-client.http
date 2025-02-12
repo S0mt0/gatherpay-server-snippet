@@ -1,1 +1,14 @@
-GET http://localhost:3000/users
+### GET request
+GET http://localhost:8000/api/v1/users
+
+### POST request
+POST http://localhost:8000/api/v1/users
+Content-Type: application/json
+
+{
+    "firstName": "Aboki",
+    "lastName": "Nkemakolam",
+    "email": "skey@mail.co",  
+    "terms_of_service": true,
+    "password":"Password123!"
+}
