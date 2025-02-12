@@ -53,6 +53,5 @@ pids
 *.pid
 *.seed
 *.pid.lock
-/src/lib/services/ip-lookup/IP2LOCATION-LITE-DB3.IPV6.BIN
 # Diagnostic reports (https://nodejs.org/api/report.html)
 report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
