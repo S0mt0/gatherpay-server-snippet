@@ -46,13 +46,13 @@ export const corsOptions: CorsOptions = {
       if (allowedOrigins.indexOf(origin!) !== -1) {
         callback(null, true);
       } else {
-        callback(new Error('Not allowed by CORS'));
+        callback(new Error('NOT ALLOWED BY CORS'));
       }
     } else {
       if (allowedOrigins.indexOf(origin!) !== -1 || !origin) {
         callback(null, true);
       } else {
-        callback(new Error('Not allowed by CORS'));
+        callback(new Error('NOT ALLOWED BY CORS'));
       }
     }
   },
