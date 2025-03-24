@@ -4,7 +4,7 @@ import { ConfigService } from '@nestjs/config';
 import helmet from 'helmet';
 
 import { AppModule } from './app.module';
-import { corsOptions } from './lib/config';
+import { corsOptions } from './lib/services/config';
 import { PORT } from './lib/constants';
 import { AllExceptionsFilter } from './lib/filters';
 

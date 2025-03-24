@@ -1,3 +1,4 @@
+import { UnauthorizedException } from '@nestjs/common';
 import {
   PROFILE_IMGS_COLLECTIONS_LIST,
   PROFILE_IMGS_NAME_LIST,
@@ -27,32 +28,42 @@ export const multiply = (...args: number[]) => {
 /** Generates and returns an object whose keys in number represent ***time*** in `hour` and values expressed in `milliseconds`
  * @description Ranges from 1 to 24 ***hours***
  */
-export const generateHours = (): TimeInMilliseconds<Hours> => {
+export function generateHours(): TimeInMilliseconds<Hours> {
   const hours = {} as TimeInMilliseconds<Hours>;
   for (let i = 1; i <= 24; i++) {
-    hours[i as keyof typeof hours] = i * 60 * 60 * 1000; // Convert hours to milliseconds
+    hours[i as keyof typeof hours] = i * 60 * 60 * 1000;
   }
   return hours;
-};
+}
 
 /** Generates and returns an object whose keys in number represent ***time*** in `day` and values expressed in `milliseconds`
  * @description Ranges from 1 to 7 ***days***
  */
-export const generateDays = (): TimeInMilliseconds<Days> => {
+export function generateDays(): TimeInMilliseconds<Days> {
   const days = {} as TimeInMilliseconds<Days>;
   for (let i = 1; i <= 7; i++) {
-    days[i as keyof typeof days] = i * 24 * 60 * 60 * 1000; // Convert days to milliseconds
+    days[i as keyof typeof days] = i * 24 * 60 * 60 * 1000;
   }
   return days;
-};
+}
 
 /** Generates and returns an object whose keys in number represent ***time*** in `minute` and values expressed in `milliseconds`
  * @description Ranges from 1 to 59 ***minutes***
  */
-export const generateMinutes = (): TimeInMilliseconds<Minutes> => {
+export function generateMinutes(): TimeInMilliseconds<Minutes> {
   const minutes = {} as TimeInMilliseconds<Minutes>;
   for (let i = 1; i <= 59; i++) {
-    minutes[i as keyof typeof minutes] = i * 60 * 1000; // Convert minutes to milliseconds
+    minutes[i as keyof typeof minutes] = i * 60 * 1000;
   }
   return minutes;
-};
+}
+
+export function extractAuthHeader(req: Request) {
+  const authorization =
+    req.headers['authorization'] || (req.headers['Authorization'] as string);
+
+  if (!authorization || !authorization.startsWith('Bearer '))
+    throw new UnauthorizedException('Missing or invalid authorization header.');
+
+  return authorization.split(' ')[1] as string;
+}

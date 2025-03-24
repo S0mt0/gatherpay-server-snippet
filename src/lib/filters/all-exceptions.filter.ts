@@ -5,7 +5,7 @@ import {
   HttpStatus,
 } from '@nestjs/common';
 import { BaseExceptionFilter } from '@nestjs/core';
-import { Request, Response } from 'express';
+import { Response } from 'express';
 import {
   ValidationError,
   ConnectionError,
@@ -15,8 +15,6 @@ import {
 
 type TAppErrorResponse = {
   statusCode: number;
-  path: string;
-  method: string;
   response: string | object;
   timestamp: string;
 };
@@ -26,14 +24,11 @@ export class AllExceptionsFilter extends BaseExceptionFilter {
   catch(exception: unknown, host: ArgumentsHost): void {
     const ctx = host.switchToHttp();
     const response = ctx.getResponse<Response>();
-    const request = ctx.getRequest<Request>();
 
     const errorResponse: TAppErrorResponse = {
       statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
       response: 'Internal Server Error',
       timestamp: new Date().toISOString(),
-      path: request.url,
-      method: request.method,
     };
 
     if (exception instanceof HttpException) {
