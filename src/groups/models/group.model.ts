@@ -6,13 +6,24 @@ import {
   ForeignKey,
   BelongsTo,
   HasMany,
+  BelongsToMany,
 } from 'sequelize-typescript';
+import { AccountDetail } from 'src/accounts/models/account.model';
 
 import { Chat } from 'src/chats/models/chat.model';
-import { User } from 'src/users/model/user.model';
+import { UserGroup } from 'src/users/models/user-group.model';
+import { User } from 'src/users/models/user.model';
 
 @Table({ tableName: 'groups' })
 export class Group extends Model<Group> {
+  @Column({
+    type: DataType.UUID,
+    primaryKey: true,
+    unique: true,
+    defaultValue: DataType.UUIDV4,
+  })
+  readonly id!: string;
+
   @Column({
     type: DataType.STRING,
     allowNull: false,
@@ -21,7 +32,7 @@ export class Group extends Model<Group> {
 
   @ForeignKey(() => User)
   @Column({
-    type: DataType.INTEGER,
+    type: DataType.UUID,
     allowNull: false,
   })
   adminId: number;
@@ -53,11 +64,18 @@ export class Group extends Model<Group> {
   })
   contributionGoal: number;
 
+  @ForeignKey(() => AccountDetail)
   @Column({
-    type: DataType.STRING,
-    allowNull: false,
+    type: DataType.UUID,
+    allowNull: true,
   })
-  accountToPayContribution: string;
+  defaultDepositAccountId: string;
+
+  @BelongsTo(() => AccountDetail, 'deposit_account')
+  depositAccount: AccountDetail;
+
+  @BelongsToMany(() => User, () => UserGroup)
+  members: User[];
 
   @HasMany(() => Chat)
   chats: Chat[];

@@ -26,7 +26,7 @@ import { CacheService } from 'src/lib/services/cache/cache.service';
 import { LoginUserDto, NewPasswordDto, ResetPasswordDTO } from './dto';
 import { ForgotPasswordDto } from './dto';
 import { CreateUserDto } from '../dto';
-import { User } from '../model/user.model';
+import { User } from '../models/user.model';
 
 @Injectable()
 export class AuthService {

@@ -22,7 +22,7 @@ import { DATABASE_URL, NODE_ENV } from '../../constants';
           dialect: 'postgres',
           uri: configService.get(DATABASE_URL),
           autoLoadModels: true,
-          synchronize: !isProduction, // In production, use migrations instead
+          synchronize: !isProduction, // Migrations will be used in production instead
           logging: !isProduction ? console.log : false,
 
           dialectOptions: {

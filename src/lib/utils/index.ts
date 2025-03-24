@@ -4,6 +4,7 @@ import {
   PROFILE_IMGS_NAME_LIST,
 } from '../constants';
 import { Days, Hours, Minutes, TimeInMilliseconds } from '../interface';
+import { Request } from 'express';
 
 /** Randomly generates image urls on https://api.dicebear.com */
 export const getRandomAvatarUrl = () =>

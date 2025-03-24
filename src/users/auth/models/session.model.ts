@@ -7,7 +7,7 @@ import {
   BelongsTo,
 } from 'sequelize-typescript';
 
-import { User } from '../../model/user.model';
+import { User } from '../../models/user.model';
 
 @Table({ tableName: 'sessions' })
 export class Session extends Model<Session> {

@@ -8,10 +8,18 @@ import {
 } from 'sequelize-typescript';
 import { Group } from 'src/groups/models/group.model';
 
-import { User } from 'src/users/model/user.model';
+import { User } from 'src/users/models/user.model';
 
 @Table({ tableName: 'chats' })
 export class Chat extends Model<Chat> {
+  @Column({
+    type: DataType.UUID,
+    primaryKey: true,
+    unique: true,
+    defaultValue: DataType.UUIDV4,
+  })
+  readonly id!: string;
+
   @Column({
     type: DataType.TEXT,
     allowNull: false,
@@ -20,20 +28,20 @@ export class Chat extends Model<Chat> {
 
   @ForeignKey(() => User)
   @Column({
-    type: DataType.INTEGER,
+    type: DataType.UUID,
     allowNull: false,
   })
-  senderId: number;
+  senderId: string;
 
   @BelongsTo(() => User)
   sender: User;
 
   @ForeignKey(() => Group)
   @Column({
-    type: DataType.INTEGER,
+    type: DataType.UUID,
     allowNull: false,
   })
-  groupId: number;
+  groupId: string;
 
   @BelongsTo(() => Group)
   group: Group;

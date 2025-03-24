@@ -9,6 +9,7 @@ import {
   BeforeSave,
   BeforeUpdate,
   HasOne,
+  BelongsToMany,
 } from 'sequelize-typescript';
 import * as argon from 'argon2';
 import { BadRequestException, ConflictException } from '@nestjs/common';
@@ -18,6 +19,7 @@ import { getRandomAvatarUrl } from 'src/lib/utils';
 import { Session } from '../auth/models/session.model';
 import { AccountDetail } from 'src/accounts/models/account.model';
 import { Group } from 'src/groups/models/group.model';
+import { UserGroup } from './user-group.model';
 
 @Table({ tableName: 'users', timestamps: true, createdAt: 'joinedAt' })
 export class User extends Model<User> {
@@ -127,19 +129,19 @@ export class User extends Model<User> {
   })
   default_account_id: string;
 
-  @BelongsTo(() => AccountDetail, 'default_account')
-  defaultAccount: AccountDetail;
-
-  @HasMany(() => AccountDetail)
-  accounts: AccountDetail[];
-
   @Column({
     type: DataType.STRING,
     allowNull: false,
   })
   country: string;
 
-  @HasMany(() => Group)
+  @BelongsTo(() => AccountDetail, 'default_account')
+  defaultAccount: AccountDetail;
+
+  @HasMany(() => AccountDetail)
+  accounts: AccountDetail[];
+
+  @BelongsToMany(() => Group, () => UserGroup)
   groups: Group[];
 
   @HasOne(() => Session)
@@ -172,7 +174,7 @@ export class User extends Model<User> {
   }
 
   @BeforeUpdate
-  static async enforceUserEmailChangePolicy(user: User) {
+  static async enforceUserAuthMethodChangePolicy(user: User) {
     if (user.changed('auth_method')) {
       throw new Error('Method of registration cannot be changed');
     }
