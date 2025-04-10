@@ -7,4 +7,7 @@ export const RP_COOKIE_KEY = 'rp_token';
 export const NP_COOKIE_KEY = 'np_token';
 
 /** Refresh token cookie key */
-export const RF_TOKEN_COOKIE_KEY = 'refresh_token';
+export const RT_COOKIE_KEY = 'refresh_token';
+
+/** Verify account token cookie key */
+export const VA_COOKIE_KEY = 'va_token';

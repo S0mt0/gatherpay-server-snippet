@@ -1,4 +1,4 @@
 export * from './tokens';
-export * from './config';
+export * from './env-vars';
 export * from './utils';
 export * from './cache-keys';

@@ -8,6 +8,7 @@ class EnvironmentVariables {
   JWT_ACCESS_TOKEN_EXP: string;
   TWILIO_AUTH_TOKEN: string;
   TWILIO_ACCOUNT_SID: string;
+  TWILIO_SERVICE_SID: string;
 }
 
 export function validate(config: Record<string, unknown>) {

@@ -33,27 +33,53 @@ export class AllExceptionsFilter extends BaseExceptionFilter {
 
     if (exception instanceof HttpException) {
       errorResponse.statusCode = exception.getStatus();
-      errorResponse.response = exception.getResponse();
+
+      const response = exception.getResponse();
+
+      if (typeof response === 'string') errorResponse.response = response;
+
+      if (typeof response === 'object') {
+        if (Object.keys(response).includes('message')) {
+          const message = response['message'];
+
+          if (Array.isArray(message))
+            errorResponse.response = message.join(', ');
+
+          if (typeof message === 'string') errorResponse.response = message;
+        }
+      }
+
+      console.log({ msgHTTP: exception.message });
     }
 
     if (exception instanceof ConnectionError) {
       errorResponse.statusCode = HttpStatus.BAD_GATEWAY;
       errorResponse.response = 'Database connection failed';
+      console.log({ msgConnect: exception.message });
     }
 
     if (exception instanceof TimeoutError) {
       errorResponse.statusCode = HttpStatus.REQUEST_TIMEOUT;
       errorResponse.response = 'Request timed out. Try again.';
+      console.log({ msgTimeout: exception.message });
     }
 
     if (exception instanceof UniqueConstraintError) {
       errorResponse.statusCode = HttpStatus.CONFLICT;
-      errorResponse.response = exception.errors.map((err) => err.message);
+      errorResponse.response = exception.errors
+        .map((err) => err.message)
+        .join(', ');
+
+      console.log({ msgUnique: exception.message });
     }
 
     if (exception instanceof ValidationError) {
       errorResponse.statusCode = HttpStatus.UNPROCESSABLE_ENTITY;
-      errorResponse.response = exception.errors.map((err) => err.message);
+      errorResponse.response = exception.errors
+        .map((err) => err.message)
+        .join(', ');
+
+      console.log({ msgValid: exception.message });
     }
 
     response.status(errorResponse.statusCode).json(errorResponse);

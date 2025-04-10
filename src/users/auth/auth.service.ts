@@ -1,6 +1,7 @@
 import { InjectModel } from '@nestjs/sequelize';
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   Injectable,
   NotFoundException,
@@ -8,7 +9,6 @@ import {
 import { JwtService } from '@nestjs/jwt';
 import * as randomize from 'randomatic';
 import { ConfigService } from '@nestjs/config';
-import TwilioClient, { type Twilio } from 'twilio';
 
 import {
   JWT_REFRESH_TOKEN_EXP,
@@ -18,66 +18,172 @@ import {
   REFRESH_TOKEN,
   TIME_IN,
   SESSION_USER,
-  TWILIO_ACCOUNT_SID,
-  TWILIO_AUTH_TOKEN,
+  SIGN_UP_SESSION,
 } from 'src/lib/constants';
 import { CacheService } from 'src/lib/services/cache/cache.service';
 
-import { LoginUserDto, NewPasswordDto, ResetPasswordDTO } from './dto';
+import { LoginUserDto, NewPasswordDto, ResetPasswordDTO, CodeDto } from './dto';
 import { ForgotPasswordDto } from './dto';
-import { CreateUserDto } from '../dto';
+import { CreateUserDto } from './dto';
 import { User } from '../models/user.model';
+import { TwilioService } from 'src/lib/services';
+import { obscurePhoneNumber } from 'src/lib/utils';
 
 @Injectable()
 export class AuthService {
-  private twilio: Twilio;
-
   constructor(
     private jwtService: JwtService,
     private configService: ConfigService,
     private cache: CacheService,
+    private twilio: TwilioService,
     @InjectModel(User) private userModel: typeof User,
-  ) {
-    const accountSid = this.configService.get<string>(TWILIO_ACCOUNT_SID);
-    const authToken = this.configService.get<string>(TWILIO_AUTH_TOKEN);
-
-    if (!this.twilio) {
-      this.twilio = TwilioClient(accountSid, authToken, {
-        autoRetry: true,
-        maxRetries: 3,
-      });
-    }
-  }
+  ) {}
 
   async signUp(dto: CreateUserDto) {
-    await this.usersService.create(dto);
-    return 'Registration complete, please log in.';
+    if (dto.password !== dto.confirm_password)
+      throw new BadRequestException('Passwords do not match.');
+
+    const signUpSession = await this.cache.get<CreateUserDto>(
+      SIGN_UP_SESSION(dto.phoneNumber),
+    );
+
+    if (signUpSession)
+      throw new ConflictException(
+        `Phone number already in use. Please verify account with the code sent to ${obscurePhoneNumber(dto.phoneNumber)}`,
+      );
+
+    console.log({ signUpSession });
+
+    const userExists = await this.userModel.findOne({
+      where: {
+        phoneNumber: dto.phoneNumber,
+      },
+    });
+
+    if (userExists && userExists.verified_phone)
+      throw new ConflictException('Phone number already in use, try again.');
+
+    if (userExists && !userExists.verified_phone)
+      throw new ConflictException(
+        `Phone number already in use. Please verify account with the code sent to ${obscurePhoneNumber(dto.phoneNumber)}`,
+      );
+
+    const verificationInstance = await this.twilio.createVerifyCode(
+      dto.phoneNumber,
+    );
+
+    console.log({ verificationInstance });
+
+    if (verificationInstance.status === 'approved') {
+      const cached = await this.cache.set(
+        SIGN_UP_SESSION(dto.phoneNumber),
+        dto,
+        TIME_IN.days[7], // Instead of saving user to actual remote database, thereby using up space, let the user info be stored in cache and automatically deletes after 1 week of not verifying their phone number.
+      );
+
+      console.log({ cached });
+    }
+
+    const token = this.jwtService.signAsync({ sub: dto.phoneNumber });
+
+    return {
+      token,
+      message: `Verify your account with the code sent to ${obscurePhoneNumber(dto.phoneNumber)}`,
+    };
+  }
+
+  async resendSignUpVerificationCode(jwt: string) {
+    const decoded = await this.jwtService.verifyAsync<{ sub: string }>(jwt);
+
+    const signUpSession = await this.cache.get<CreateUserDto>(
+      SIGN_UP_SESSION(decoded.sub),
+    );
+
+    if (!signUpSession)
+      throw new ForbiddenException('Account does not exist, please sign up.');
+    const verificationInstance = await this.twilio.createVerifyCode(
+      signUpSession.phoneNumber,
+    );
+
+    if (verificationInstance.status === 'approved') {
+      const cached = await this.cache.set(
+        SIGN_UP_SESSION(signUpSession.phoneNumber),
+        signUpSession,
+        TIME_IN.days[7],
+      );
+
+      console.log({ cached });
+    }
+
+    const token = this.jwtService.signAsync({ sub: signUpSession.phoneNumber });
+
+    return {
+      token,
+      message: `A code has been sent to ${obscurePhoneNumber(signUpSession.phoneNumber)}`,
+    };
+  }
+
+  async verifyAccount(dto: CodeDto, jwt: string) {
+    const decoded = await this.jwtService.verifyAsync<{ sub: string }>(jwt);
+
+    const signUpSession = await this.cache.get<CreateUserDto>(
+      SIGN_UP_SESSION(decoded.sub),
+    );
+
+    if (!signUpSession)
+      throw new ForbiddenException('Account does not exist, please sign up.');
+
+    console.log({ signUpSession });
+
+    const verificationCheckInstance = await this.twilio.createVerificationCheck(
+      signUpSession.phoneNumber,
+      dto.code,
+    );
+
+    console.log({ verificationCheckInstance });
+
+    if (verificationCheckInstance.status === 'failed')
+      throw new ForbiddenException('Invalid code!');
+
+    if (verificationCheckInstance.status === 'approved') {
+      await this.userModel.create({ ...signUpSession, verified_phone: true });
+
+      const deleted = await this.cache.delete(
+        SIGN_UP_SESSION(signUpSession.phoneNumber),
+      );
+
+      console.log({ deleted });
+    }
+
+    return 'You rock!🎉 Please login now!';
   }
 
   async login(dto: LoginUserDto) {
-    const user = await this.userModel.findAll({ where: { email: dto.email } });
+    const user = await this.userModel.findOne({
+      where: { phoneNumber: dto.phoneNumber },
+    });
 
     if (!user) {
-      console.error(`User not found for email: ${dto.email}`);
+      console.error(`User not found for phone number: ${dto.phoneNumber}`);
       throw new ForbiddenException('Invalid credentials');
     }
 
     const isCorrectPassword = await user.verifyPassword(dto.password);
 
     if (!isCorrectPassword) {
-      console.error(`Invalid password for user: ${user._id}`);
+      console.error(`Invalid password for user: ${user.phoneNumber}`);
       throw new ForbiddenException('Invalid credentials');
     }
 
     const access_token = await this.jwtService.signAsync({
-      sub: user._id,
-      email: user.email,
+      sub: user.id,
+      isCredentials: true,
     });
 
     const refresh_token = await this.jwtService.signAsync(
       {
-        sub: user._id,
-        email: user.email,
+        sub: user.id,
+        isCredentials: true,
       },
       {
         secret: this.configService.get(JWT_REFRESH_TOKEN_SECRET),
@@ -91,57 +197,17 @@ export class AuthService {
     await this.cache.set(
       SESSION_USER(user.id),
       user.toJSON(),
-      this.configService.get(JWT_REFRESH_TOKEN_EXP, TIME_IN.days[7].toString()),
+      this.configService.get(JWT_REFRESH_TOKEN_EXP, TIME_IN.days[7]),
     );
 
     await this.cache.set(
       REFRESH_TOKEN(user.id),
       refresh_token,
-      this.configService.get(JWT_REFRESH_TOKEN_EXP, TIME_IN.days[7].toString()),
+      this.configService.get(JWT_REFRESH_TOKEN_EXP, TIME_IN.days[7]),
     );
 
     return { user, access_token, refresh_token };
   }
-
-  /* google = async (idToken: string) => {
-    if (!idToken) throw new BadRequestException('idToken is required!');
-
-    const user = await this.firebaseAdminService.googleAuth(idToken);
-
-    const access_token = await this.jwtService.signAsync({
-      sub: user._id,
-      email: user.email,
-    });
-
-    const refresh_token = await this.jwtService.signAsync(
-      {
-        sub: user._id,
-        email: user.email,
-      },
-      {
-        secret: this.configService.get(JWT_REFRESH_TOKEN_SECRET),
-        expiresIn: this.configService.get(JWT_REFRESH_TOKEN_EXP),
-      },
-    );
-
-    user.refresh_token = refresh_token;
-    await user.save();
-
-    await this.cache.set(
-      SESSION_USER(user.id),
-      user.toJSON(),
-      this.configService.get(JWT_REFRESH_TOKEN_EXP, TIME_IN.days[7].toString()),
-    );
-
-    await this.cache.set(
-      REFRESH_TOKEN(user.id),
-      refresh_token,
-      this.configService.get(JWT_REFRESH_TOKEN_EXP, TIME_IN.days[7].toString()),
-    );
-
-    return { user, access_token, refresh_token };
-  };
-*/
 
   async verifyPRCode(dto: ResetPasswordDTO, jwt: string) {
     const decoded = await this.jwtService.verifyAsync<{
@@ -201,8 +267,37 @@ export class AuthService {
   }
 
   forgotPassword = async (dto: ForgotPasswordDto) => {
-    const user = await this.usersService.findUserByEmail(dto.email);
-    if (!user) throw new NotFoundException('User not found.');
+    const user = await this.userModel.findOne({
+      where: {
+        phoneNumber: dto.phoneNumber,
+      },
+    });
+
+    if (!user) throw new NotFoundException('User not found!');
+
+    if (!user.verified_phone)
+      throw new BadRequestException(`Please verify your phone number`);
+
+    const verificationInstance = await this.twilio.createVerifyCode(
+      dto.phoneNumber,
+    );
+
+    if (verificationInstance.status === 'approved') {
+      const cached = await this.cache.set(
+        SIGN_UP_SESSION(dto.phoneNumber),
+        dto,
+        TIME_IN.days[7],
+      );
+
+      console.log({ cached });
+    }
+
+    const token = this.jwtService.signAsync({ sub: dto.phoneNumber });
+
+    return {
+      token,
+      message: `Verify your account with the code sent to ${obscurePhoneNumber(dto.phoneNumber)}`,
+    };
 
     // mail user
     const code = randomize('0', 4);

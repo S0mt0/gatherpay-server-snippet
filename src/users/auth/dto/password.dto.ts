@@ -1,11 +1,23 @@
-import { IsEmail, IsString, IsStrongPassword } from 'class-validator';
+import { IsString, IsStrongPassword } from 'class-validator';
 
 export class ForgotPasswordDto {
-  @IsEmail()
-  email: string;
+  @IsString()
+  phoneNumber: string;
 }
 
 export class NewPasswordDto {
+  @IsString()
+  confirm_password: string;
+
+  @IsString()
+  @IsStrongPassword({ minLength: 6 }, { message: 'Password not strong enough' })
+  new_password: string;
+}
+
+export class UpdatePasswordDto {
+  @IsString()
+  current_password: string;
+
   @IsString()
   confirm_password: string;
 

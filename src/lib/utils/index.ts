@@ -68,3 +68,27 @@ export function extractAuthHeader(req: Request) {
 
   return authorization.split(' ')[1] as string;
 }
+
+export const obscurePhoneNumber = (phoneNumber: string) => {
+  if (phoneNumber.length <= 4) return phoneNumber;
+
+  const firstTwo = phoneNumber.slice(0, 2);
+  const lastTwo = phoneNumber.slice(-2);
+  const obscuredMiddle = '*'.repeat(phoneNumber.length - 4);
+
+  return `${firstTwo}${obscuredMiddle}${lastTwo}`;
+};
+
+export function obscureEmail(email: string): string {
+  const [localPart, domain] = email.split('@');
+
+  if (!domain || localPart.length <= 3) {
+    return email;
+  }
+
+  const firstTwo = localPart.slice(0, 2);
+  const lastChar = localPart.slice(-1);
+  const obscuredMiddle = '*'.repeat(Math.max(0, localPart.length - 3));
+
+  return `${firstTwo}${obscuredMiddle}${lastChar}@${domain}`;
+}

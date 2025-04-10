@@ -16,16 +16,21 @@ import {
   NewPasswordDto,
   ForgotPasswordDto,
   ResetPasswordDTO,
+  CodeDto,
 } from './dto';
+
 import {
   NODE_ENV,
   NP_COOKIE_KEY,
-  RF_TOKEN_COOKIE_KEY,
   RP_COOKIE_KEY,
+  RT_COOKIE_KEY,
   TIME_IN,
+  VA_COOKIE_KEY,
 } from 'src/lib/constants';
+
 import { Message, ParsedJWTCookie } from 'src/lib/decorators';
-import { CreateUserDto } from '../dto';
+import { CreateUserDto } from './dto';
+import { Throttle } from '@nestjs/throttler';
 
 @Message()
 @Controller('auth')
@@ -35,12 +40,64 @@ export class AuthController {
     private configService: ConfigService,
   ) {}
 
+  @Throttle({ default: { limit: 10, ttl: TIME_IN.minutes[1] } })
   @Post('sign-up')
-  signUp(@Body() createUserDto: CreateUserDto) {
-    return this.authService.signUp(createUserDto);
+  async signUp(
+    @Body() createUserDto: CreateUserDto,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const { message, token } = await this.authService.signUp(createUserDto);
+
+    // Set verify account cookie token
+    res.cookie(VA_COOKIE_KEY, token, {
+      secure: true,
+      httpOnly: true,
+      sameSite: 'none',
+      maxAge: TIME_IN.days[7],
+    });
+
+    res.status(HttpStatus.OK);
+    return message;
   }
 
-  @Message('Welcome back!')
+  @Throttle({ default: { limit: 4, ttl: TIME_IN.minutes[1] } })
+  @Get('resend-verification-code')
+  async resendSignUpVerificationCode(
+    @Res({ passthrough: true }) res: Response,
+    @ParsedJWTCookie(VA_COOKIE_KEY) jwt: string,
+  ) {
+    const { message, token } =
+      await this.authService.resendSignUpVerificationCode(jwt);
+
+    // Set verify account cookie token
+    res.cookie(VA_COOKIE_KEY, token, {
+      secure: true,
+      httpOnly: true,
+      sameSite: 'none',
+      maxAge: TIME_IN.days[7],
+    });
+
+    res.status(HttpStatus.OK);
+    return message;
+  }
+
+  @Post('verify-account')
+  async verifyAccount(
+    @Res({ passthrough: true }) res: Response,
+    @Body() verifyAccountDto: CodeDto,
+    @ParsedJWTCookie(VA_COOKIE_KEY) jwt: string,
+  ) {
+    const verified = await this.authService.verifyAccount(
+      verifyAccountDto,
+      jwt,
+    );
+
+    res.clearCookie(VA_COOKIE_KEY);
+    res.status(HttpStatus.CREATED);
+    return verified;
+  }
+
+  @Message('Welcome back!🎊')
   @Post('sign-in')
   async login(
     @Res({ passthrough: true }) res: Response,
@@ -53,42 +110,16 @@ export class AuthController {
     res.setHeader('Authorization', access_token);
 
     // Set refresh token
-    res.cookie(RF_TOKEN_COOKIE_KEY, refresh_token, {
+    res.cookie(RT_COOKIE_KEY, refresh_token, {
       secure: true,
-      // secure: this.configService.get(NODE_ENV) === 'production',
       httpOnly: true,
       sameSite: 'none',
       maxAge: TIME_IN.days[7],
     });
 
-    res.status(200);
-
+    res.status(HttpStatus.OK);
     return user;
   }
-
-  // @Get('google')
-  // async google(
-  //   @Res({ passthrough: true }) res: Response,
-  //   @Query('idToken') idToken: string,
-  // ) {
-  //   const { access_token, refresh_token, user } =
-  //     await this.authService.google(idToken);
-
-  //   // Set access token
-  //   res.setHeader('Authorization', access_token);
-
-  //   // Set refresh token
-  //   res.cookie(RF_TOKEN_COOKIE_KEY, refresh_token, {
-  //     secure: this.configService.get(NODE_ENV) === 'production',
-  //     httpOnly: true,
-  //     sameSite: 'none',
-  //     maxAge: TIME_IN.days[7],
-  //   });
-
-  //   res.status(200);
-
-  //   return user;
-  // }
 
   @Post('forgot-password')
   async forgotPassword(
@@ -98,7 +129,7 @@ export class AuthController {
     const token = await this.authService.forgotPassword(forgotPasswordDto);
 
     res.cookie(RP_COOKIE_KEY, token, {
-      secure: this.configService.get(NODE_ENV) === 'production',
+      secure: true,
       httpOnly: true,
       sameSite: 'none',
       maxAge: TIME_IN.minutes[15],

@@ -122,6 +122,12 @@ export class User extends Model<User> {
   })
   avatarUrl: string;
 
+  @Column({
+    type: DataType.STRING,
+    allowNull: true,
+  })
+  refresh_token: string;
+
   @ForeignKey(() => AccountDetail)
   @Column({
     type: DataType.UUID,
@@ -188,6 +194,7 @@ export class User extends Model<User> {
     delete user.default_account_id;
     delete user.auth_method;
     delete user.updatedAt;
+    delete user.refresh_token;
 
     return user;
   }

@@ -24,4 +24,10 @@ export class UserGroup extends Model<UserGroup> {
     allowNull: false,
   })
   groupId: number;
+
+  @Column({
+    type: DataType.DATE,
+    allowNull: false,
+  })
+  joinedAt: Date;
 }
