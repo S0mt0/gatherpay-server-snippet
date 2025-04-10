@@ -7,20 +7,18 @@ import {
   Put,
   Res,
 } from '@nestjs/common';
-import { Request, Response } from 'express';
-import { ConfigService } from '@nestjs/config';
+import { Response } from 'express';
+import { Throttle } from '@nestjs/throttler';
 
 import { AuthService } from './auth.service';
 import {
   LoginUserDto,
   NewPasswordDto,
   ForgotPasswordDto,
-  ResetPasswordDTO,
   CodeDto,
 } from './dto';
 
 import {
-  NODE_ENV,
   NP_COOKIE_KEY,
   RP_COOKIE_KEY,
   RT_COOKIE_KEY,
@@ -30,15 +28,11 @@ import {
 
 import { Message, ParsedJWTCookie } from 'src/lib/decorators';
 import { CreateUserDto } from './dto';
-import { Throttle } from '@nestjs/throttler';
 
 @Message()
 @Controller('auth')
 export class AuthController {
-  constructor(
-    private readonly authService: AuthService,
-    private configService: ConfigService,
-  ) {}
+  constructor(private readonly authService: AuthService) {}
 
   @Throttle({ default: { limit: 10, ttl: TIME_IN.minutes[1] } })
   @Post('sign-up')
@@ -97,6 +91,7 @@ export class AuthController {
     return verified;
   }
 
+  @Throttle({ default: { limit: 10, ttl: TIME_IN.minutes[1] } })
   @Message('Welcome back!🎊')
   @Post('sign-in')
   async login(
@@ -121,44 +116,47 @@ export class AuthController {
     return user;
   }
 
-  @Post('forgot-password')
+  @Throttle({ default: { limit: 4, ttl: TIME_IN.minutes[1] } })
+  @Post('password/forget')
   async forgotPassword(
     @Body() forgotPasswordDto: ForgotPasswordDto,
     @Res({ passthrough: true }) res: Response,
   ) {
-    const token = await this.authService.forgotPassword(forgotPasswordDto);
+    const { token, message } =
+      await this.authService.forgotPassword(forgotPasswordDto);
 
     res.cookie(RP_COOKIE_KEY, token, {
       secure: true,
       httpOnly: true,
       sameSite: 'none',
-      maxAge: TIME_IN.minutes[15],
     });
 
-    return 'A code was sent to your email. Use it to reset your password.';
+    return message;
   }
 
-  @Post('verify-pr-code')
-  async verifyPRCode(
+  @Message('You rock! Now, create a new password🎊')
+  @Post('password/verify')
+  async verifyPasswordResetCode(
     @ParsedJWTCookie(RP_COOKIE_KEY) jwt: string,
-    @Body() resetPasswordDTO: ResetPasswordDTO,
+    @Body() resetPasswordDTO: CodeDto,
     @Res({ passthrough: true }) res: Response,
   ) {
-    const token = await this.authService.verifyPRCode(resetPasswordDTO, jwt);
+    const token = await this.authService.verifyPasswordResetCode(
+      resetPasswordDTO,
+      jwt,
+    );
 
     res.cookie(NP_COOKIE_KEY, token, {
-      secure: this.configService.get(NODE_ENV) === 'production',
+      secure: true,
       httpOnly: true,
       sameSite: 'none',
-      maxAge: TIME_IN.minutes[15],
     });
 
+    res.clearCookie(RP_COOKIE_KEY);
     res.status(200);
-
-    return 'You rock! Now, create a new password.';
   }
 
-  @Put('reset-password')
+  @Put('password/reset')
   async resetPassword(
     @ParsedJWTCookie(RP_COOKIE_KEY) jwt: string,
     @Body() newPasswordDto: NewPasswordDto,
@@ -166,58 +164,41 @@ export class AuthController {
     return this.authService.resetPassword(newPasswordDto, jwt);
   }
 
-  @Get('resend-pr-code')
-  async resendPRCode(
+  @Throttle({ default: { limit: 4, ttl: TIME_IN.minutes[1] } })
+  @Message('Code sent!🎉')
+  @Get('password/resend-code')
+  async resendPasswordResetCode(
     @Res({ passthrough: true }) res: Response,
     @ParsedJWTCookie(RP_COOKIE_KEY) jwt: string,
   ) {
-    const token = await this.authService.resendPRCode(jwt);
+    const token = await this.authService.resendPasswordResetCode(jwt);
 
     res.cookie(RP_COOKIE_KEY, token, {
-      secure: this.configService.get(NODE_ENV) === 'production',
+      secure: true,
       httpOnly: true,
       sameSite: 'none',
       maxAge: TIME_IN.minutes[15],
     });
-
-    return 'Code sent!🎉';
   }
 
   @Message('Logout successful')
   @Get('logout')
   async logout(
     @Res({ passthrough: true }) res: Response,
-    @ParsedJWTCookie(RF_TOKEN_COOKIE_KEY) refresh_token: string,
+    @ParsedJWTCookie(RT_COOKIE_KEY) refresh_token: string,
   ) {
-    // Is refresh_token in db?
-    const session = await this.authService.findByRefreshToken(refresh_token);
-
-    if (!session) {
-      // If no valid session was found, clear cookies for whatever session is active
-      res.clearCookie(RF_TOKEN_COOKIE_KEY);
-      res.status(HttpStatus.NO_CONTENT);
-      return 'Session expired, please log in again.';
-    }
-
-    session.refresh_token = '';
-
-    await session.save().then(async (user) => {
-      await this.authService.removeSession(user.id);
-    });
-
-    res.clearCookie(RF_TOKEN_COOKIE_KEY);
+    res.clearCookie(RT_COOKIE_KEY);
     res.status(HttpStatus.NO_CONTENT);
+    return this.authService.logout(refresh_token);
   }
 
   @Get('refresh-token')
   async refreshToken(
     @Res({ passthrough: true }) res: Response,
-    @Res() req: Request,
-    @ParsedJWTCookie(RF_TOKEN_COOKIE_KEY) refresh_token: string,
+    @ParsedJWTCookie(RT_COOKIE_KEY) refresh_token: string,
   ) {
     const { user, token } = await this.authService.refreshToken(refresh_token);
 
-    // Set access token
     res.setHeader('Authorization', token);
     res.status(HttpStatus.OK);
 

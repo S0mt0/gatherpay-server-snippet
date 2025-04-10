@@ -25,6 +25,8 @@ export class AllExceptionsFilter extends BaseExceptionFilter {
     const ctx = host.switchToHttp();
     const response = ctx.getResponse<Response>();
 
+    console.log({ exception });
+
     const errorResponse: TAppErrorResponse = {
       statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
       response: 'Internal Server Error',
@@ -38,14 +40,33 @@ export class AllExceptionsFilter extends BaseExceptionFilter {
 
       if (typeof response === 'string') errorResponse.response = response;
 
-      if (typeof response === 'object') {
-        if (Object.keys(response).includes('message')) {
-          const message = response['message'];
+      if (
+        typeof response === 'object' &&
+        response !== null &&
+        'message' in response
+      ) {
+        const message = response.message;
 
-          if (Array.isArray(message))
+        if (typeof message === 'string') errorResponse.response = message;
+
+        if (Array.isArray(message)) {
+          if (message.every((item) => typeof item === 'string')) {
             errorResponse.response = message.join(', ');
-
-          if (typeof message === 'string') errorResponse.response = message;
+          } else if (
+            message.every(
+              (item) =>
+                typeof item === 'object' &&
+                item !== null &&
+                'message' in item &&
+                typeof item.message === 'string',
+            )
+          ) {
+            errorResponse.response = message
+              .map((item) => item.message)
+              .join(', ');
+          } else {
+            errorResponse.response = 'An unknown error occurred';
+          }
         }
       }
 

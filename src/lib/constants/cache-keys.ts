@@ -10,3 +10,6 @@ export const NP_TOKEN = (userId: string) => `NP_TOKEN-${userId}`;
 
 export const SIGN_UP_SESSION = (phoneNumber: string) =>
   `SIGN_UP_SESSION-${phoneNumber}`;
+
+export const PASSWORD_SESSION = (phoneNumber: string) =>
+  `PASSWORD_SESSION-${phoneNumber}`;

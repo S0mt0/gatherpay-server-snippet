@@ -25,8 +25,3 @@ export class UpdatePasswordDto {
   @IsStrongPassword({ minLength: 6 }, { message: 'Password not strong enough' })
   new_password: string;
 }
-
-export class ResetPasswordDTO {
-  @IsString()
-  rp_code: string;
-}

@@ -26,19 +26,26 @@ export class ResponseInterceptor implements NestInterceptor {
           context.getClass(),
         ]);
 
-        if (typeof data === 'string' && data.trim().length)
+        if (data === null || data === undefined) {
+          return {
+            statusCode: res.statusCode,
+            response: message,
+            timestamp: new Date().toISOString(),
+          };
+        } else if (typeof data === 'string' && data.trim().length) {
           return {
             statusCode: res.statusCode,
             response: data,
             timestamp: new Date().toISOString(),
           };
-
-        return {
-          statusCode: res.statusCode,
-          response: message,
-          data,
-          timestamp: new Date().toISOString(),
-        };
+        } else {
+          return {
+            statusCode: res.statusCode,
+            response: message,
+            data,
+            timestamp: new Date().toISOString(),
+          };
+        }
       }),
     );
   }
