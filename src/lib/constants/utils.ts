@@ -12,6 +12,8 @@ export const TIME_IN = {
 
 export const APP_NAME = 'Gatherpay';
 
+export const APP_VERSION = '1.0';
+
 export const PROFILE_IMGS_NAME_LIST = [
   'Garfield',
   'Tinkerbell',

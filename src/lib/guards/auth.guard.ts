@@ -56,13 +56,11 @@ export class AuthenticationGuard implements CanActivate {
     if (!decoded || !decoded.sub || !decoded.email)
       throw new UnauthorizedException('Session expired, please log in again.');
 
-    const user =
-      (await this.cache.get(SESSION_USER(decoded.sub))) ??
-      (await this.usersService.findUserById(decoded.sub));
+    const user = await this.cache.get(SESSION_USER(decoded.sub));
 
     if (!user) throw new NotFoundException('User not found!');
 
-    request.user = user;
+    request['user'] = user;
 
     return true;
   }

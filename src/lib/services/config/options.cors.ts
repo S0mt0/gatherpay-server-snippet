@@ -1,19 +1,21 @@
 import { CorsOptions } from '@nestjs/common/interfaces/external/cors-options.interface';
 import { ConfigService } from '@nestjs/config';
 
-import { NODE_ENV } from '../../constants';
+import { NODE_ENV, PORT } from '../../constants';
+
+const config = new ConfigService();
 
 /** Allowed production origins */
 const prodOrigin = [''];
 
 /** Allowed development origins */
 const devOrigin = [
+  `http://localhost:${config.get(PORT, 8000)}`,
   'http://localhost:3000',
   'http://localhost:3001',
   'http://localhost:5173',
 ];
 
-const config = new ConfigService();
 const isProduction = config.get(NODE_ENV) === 'production';
 
 const allowedOrigins = isProduction ? prodOrigin : devOrigin;

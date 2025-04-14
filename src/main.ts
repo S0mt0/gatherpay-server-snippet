@@ -2,10 +2,11 @@ import { HttpAdapterHost, NestFactory } from '@nestjs/core';
 import { HttpStatus, ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import helmet from 'helmet';
+import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 
 import { AppModule } from './app.module';
-import { corsOptions } from './lib/services/config';
-import { PORT } from './lib/constants';
+import { app_description, corsOptions } from './lib/services/config';
+import { APP_NAME, APP_VERSION, PORT } from './lib/constants';
 import { AllExceptionsFilter } from './lib/filters';
 
 async function bootstrap() {
@@ -26,9 +27,25 @@ async function bootstrap() {
   app.use(helmet());
   app.enableCors(corsOptions);
 
-  const config = app.get(ConfigService);
+  const configService = app.get(ConfigService);
 
-  await app.listen(config.get(PORT, 8000));
+  const config = new DocumentBuilder()
+    .setTitle(APP_NAME)
+    .setDescription(app_description)
+    .setVersion(APP_VERSION)
+    .addBearerAuth({
+      type: 'apiKey',
+      in: 'header',
+      name: 'Authorization',
+    })
+    .setContact('Sewkito', '', 'sewkito@gmail.com')
+    .build();
+
+  const document = SwaggerModule.createDocument(app, config);
+
+  SwaggerModule.setup('api', app, document);
+
+  await app.listen(configService.get(PORT, 8000));
 }
 
 bootstrap();

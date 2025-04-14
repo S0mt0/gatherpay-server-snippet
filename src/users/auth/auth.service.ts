@@ -1,4 +1,3 @@
-import { Sequelize } from 'sequelize-typescript';
 import { InjectModel } from '@nestjs/sequelize';
 import {
   ConflictException,
@@ -39,7 +38,6 @@ export class AuthService {
     private twilio: TwilioService,
     @InjectModel(User) private userModel: typeof User,
     @InjectModel(Session) private sessionModel: typeof Session,
-    private sequelize: Sequelize,
   ) {}
 
   async signUp(dto: CreateUserDto) {
@@ -71,25 +69,17 @@ export class AuthService {
         `Phone number already in use. Please verify account with the code sent to ${obscurePhoneNumber(dto.phoneNumber)}`,
       );
 
-    const verificationInstance = await this.twilio.createVerifyCode(
-      dto.phoneNumber,
+    await this.twilio.createVerifyCode(dto.phoneNumber);
+
+    await this.cache.set(
+      SIGN_UP_SESSION(dto.phoneNumber),
+      dto,
+      TIME_IN.minutes[10], // Instead of saving user to actual remote database, thereby using up space, let the user info be stored in cache and automatically deletes code expires
     );
 
-    console.log({ verificationInstance });
-
-    if (verificationInstance.status === 'approved') {
-      const cached = await this.cache.set(
-        SIGN_UP_SESSION(dto.phoneNumber),
-        dto,
-        TIME_IN.days[7], // Instead of saving user to actual remote database, thereby using up space, let the user info be stored in cache and automatically deletes after 1 week of not verifying their phone number.
-      );
-
-      console.log({ cached });
-    }
-
-    const token = this.jwtService.signAsync(
+    const token = await this.jwtService.signAsync(
       { sub: dto.phoneNumber },
-      { expiresIn: '7d' },
+      { expiresIn: '10m' },
     );
 
     return {
@@ -113,19 +103,17 @@ export class AuthService {
         'Account does not exist, please sign up.',
       );
 
-    const verificationInstance = await this.twilio.createVerifyCode(
-      signUpSession.phoneNumber,
+    await this.twilio.createVerifyCode(signUpSession.phoneNumber);
+
+    await this.cache.set(
+      SIGN_UP_SESSION(signUpSession.phoneNumber),
+      signUpSession,
+      TIME_IN.days[7],
     );
 
-    if (verificationInstance.status === 'approved') {
-      await this.cache.set(
-        SIGN_UP_SESSION(signUpSession.phoneNumber),
-        signUpSession,
-        TIME_IN.days[7],
-      );
-    }
-
-    const token = this.jwtService.signAsync({ sub: signUpSession.phoneNumber });
+    const token = await this.jwtService.signAsync({
+      sub: signUpSession.phoneNumber,
+    });
 
     return {
       token,
@@ -157,16 +145,20 @@ export class AuthService {
 
     console.log({ verificationCheckInstance });
 
-    if (verificationCheckInstance.status === 'failed')
+    if (
+      verificationCheckInstance.status === 'failed' ||
+      verificationCheckInstance.status !== 'approved'
+    )
       throw new ForbiddenException('Invalid code!');
 
-    if (verificationCheckInstance.status === 'approved') {
-      await this.userModel.create({ ...signUpSession, verified_phone: true });
+    const user = await this.userModel.create({
+      ...signUpSession,
+      verified_phone: true,
+    });
 
-      await this.cache.delete(SIGN_UP_SESSION(signUpSession.phoneNumber));
-    }
+    await this.cache.delete(SIGN_UP_SESSION(signUpSession.phoneNumber));
 
-    return 'You rock!🎉 Please login now!';
+    return user;
   }
 
   async login(dto: LoginUserDto) {
@@ -205,17 +197,19 @@ export class AuthService {
       },
     );
 
-    await this.sequelize.transaction(async (t) => {
-      user.refresh_token = refresh_token;
-      await user.save({ transaction: t });
-
-      await this.sessionModel.upsert(
-        { refresh_token },
-        {
-          transaction: t,
-        },
-      );
+    const transaction = await this.userModel.sequelize.transaction({
+      autocommit: true,
     });
+
+    try {
+      user.refresh_token = refresh_token;
+      await user.save({ transaction });
+
+      await this.sessionModel.upsert({ refresh_token }, { transaction });
+    } catch (error) {
+      console.error({ error });
+      await transaction.rollback();
+    }
 
     await this.cache.set(
       SESSION_USER(user.id),
@@ -253,7 +247,7 @@ export class AuthService {
       );
     }
 
-    const token = this.jwtService.signAsync(
+    const token = await this.jwtService.signAsync(
       { sub: dto.phoneNumber },
       { expiresIn: '7d' },
     );
@@ -345,17 +339,22 @@ export class AuthService {
     const user = await this.userModel.findOne({ where: { refresh_token } });
     if (!user) throw new UnauthorizedException();
 
-    await this.sequelize.transaction(async (t) => {
+    const transaction = await this.userModel.sequelize.transaction();
+
+    try {
       user.refresh_token = '';
-      await user.save({ transaction: t });
+      await user.save({ transaction });
 
       await this.sessionModel.update(
         { refresh_token: '' },
         {
           where: { userId: user.id },
-          transaction: t,
+          transaction,
         },
       );
-    });
+    } catch (error) {
+      console.error({ error });
+      await transaction.rollback();
+    }
   }
 }

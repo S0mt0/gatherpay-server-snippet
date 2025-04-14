@@ -29,19 +29,19 @@ export class ResponseInterceptor implements NestInterceptor {
         if (data === null || data === undefined) {
           return {
             statusCode: res.statusCode,
-            response: message,
+            message,
             timestamp: new Date().toISOString(),
           };
         } else if (typeof data === 'string' && data.trim().length) {
           return {
             statusCode: res.statusCode,
-            response: data,
+            message: data,
             timestamp: new Date().toISOString(),
           };
         } else {
           return {
             statusCode: res.statusCode,
-            response: message,
+            message,
             data,
             timestamp: new Date().toISOString(),
           };

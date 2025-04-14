@@ -23,7 +23,7 @@ import { DATABASE_URL, NODE_ENV } from '../../constants';
           uri: configService.get(DATABASE_URL),
           autoLoadModels: true,
           synchronize: !isProduction, // Migrations will be used in production instead
-          logging: !isProduction ? console.log : false,
+          logging: false,
 
           dialectOptions: {
             statement_timeout: 30000,

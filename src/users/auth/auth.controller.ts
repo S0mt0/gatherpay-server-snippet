@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   Get,
+  HttpCode,
   HttpStatus,
   Post,
   Put,
@@ -9,6 +10,7 @@ import {
 } from '@nestjs/common';
 import { Response } from 'express';
 import { Throttle } from '@nestjs/throttler';
+import { ApiOkResponse } from '@nestjs/swagger';
 
 import { AuthService } from './auth.service';
 import {
@@ -28,12 +30,25 @@ import {
 
 import { Message, ParsedJWTCookie } from 'src/lib/decorators';
 import { CreateUserDto } from './dto';
+import { BaseResponseDto } from 'src/lib/utils';
 
 @Message()
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
+  /**
+   * Sign up / Create new account
+   *
+   * @remarks This operation initiates registration/creation of a new user account. If phone number verification isn't completed, registraion fails and data will not be persisted to database. This means someone else can try using the same credentials for registration.
+   *
+   * @throws {500} `Internal Server Error`
+   * @throws {422} `Unprocessable Entity` - When payload validation fails
+   * @throws {409} `Conflict` - When there's already an active signup session with the same credentials
+   * @throws {429} `Too Many Requests` - Limited to 10 requests per minute
+   */
+  @ApiOkResponse({ type: BaseResponseDto })
+  @HttpCode(HttpStatus.OK)
   @Throttle({ default: { limit: 10, ttl: TIME_IN.minutes[1] } })
   @Post('sign-up')
   async signUp(
@@ -47,10 +62,9 @@ export class AuthController {
       secure: true,
       httpOnly: true,
       sameSite: 'none',
-      maxAge: TIME_IN.days[7],
+      maxAge: TIME_IN.minutes[10],
     });
 
-    res.status(HttpStatus.OK);
     return message;
   }
 
@@ -71,7 +85,6 @@ export class AuthController {
       maxAge: TIME_IN.days[7],
     });
 
-    res.status(HttpStatus.OK);
     return message;
   }
 
@@ -81,18 +94,15 @@ export class AuthController {
     @Body() verifyAccountDto: CodeDto,
     @ParsedJWTCookie(VA_COOKIE_KEY) jwt: string,
   ) {
-    const verified = await this.authService.verifyAccount(
-      verifyAccountDto,
-      jwt,
-    );
+    const user = await this.authService.verifyAccount(verifyAccountDto, jwt);
 
     res.clearCookie(VA_COOKIE_KEY);
-    res.status(HttpStatus.CREATED);
-    return verified;
+    return user;
   }
 
   @Throttle({ default: { limit: 10, ttl: TIME_IN.minutes[1] } })
   @Message('Welcome back!🎊')
+  @HttpCode(HttpStatus.OK)
   @Post('sign-in')
   async login(
     @Res({ passthrough: true }) res: Response,
@@ -112,11 +122,11 @@ export class AuthController {
       maxAge: TIME_IN.days[7],
     });
 
-    res.status(HttpStatus.OK);
     return user;
   }
 
   @Throttle({ default: { limit: 4, ttl: TIME_IN.minutes[1] } })
+  @HttpCode(HttpStatus.OK)
   @Post('password/forget')
   async forgotPassword(
     @Body() forgotPasswordDto: ForgotPasswordDto,
@@ -135,6 +145,7 @@ export class AuthController {
   }
 
   @Message('You rock! Now, create a new password🎊')
+  @HttpCode(HttpStatus.OK)
   @Post('password/verify')
   async verifyPasswordResetCode(
     @ParsedJWTCookie(RP_COOKIE_KEY) jwt: string,
@@ -153,7 +164,6 @@ export class AuthController {
     });
 
     res.clearCookie(RP_COOKIE_KEY);
-    res.status(200);
   }
 
   @Put('password/reset')

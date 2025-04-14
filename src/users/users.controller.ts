@@ -1,26 +1,27 @@
 import {
   Controller,
   Get,
-  Post,
   Body,
   Patch,
   Param,
   // Delete,
   ParseIntPipe,
 } from '@nestjs/common';
-// import { ApiOperation, ApiResponse, ApiTags, ApiBody } from '@nestjs/swagger';
+import { ApiBearerAuth } from '@nestjs/swagger';
 
 import { UsersService } from './users.service';
-import { CreateUserDto } from './auth/dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { Protect } from 'src/lib/decorators';
 
+@Protect()
+@ApiBearerAuth()
 @Controller('users')
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
-  @Post()
-  create(@Body() createUserDto: CreateUserDto) {
-    return this.usersService.create(createUserDto);
+  @Get('me')
+  getSessionUser() {
+    return {};
   }
 
   @Get()

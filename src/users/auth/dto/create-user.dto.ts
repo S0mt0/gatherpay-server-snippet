@@ -21,6 +21,8 @@ export class IsAllowedRegionPhoneNumberConstraint
   implements ValidatorConstraintInterface
 {
   validate(value: string) {
+    if (!value || typeof value !== 'string') return false;
+
     const parsedNumber = parsePhoneNumberFromString(value);
     if (!parsedNumber) return false;
 
@@ -30,34 +32,41 @@ export class IsAllowedRegionPhoneNumberConstraint
 }
 
 export class CreateUserDto {
-  @IsString()
+  @IsString({ message: '"firstName" is required' })
   @MinLength(3)
   firstName: string;
 
-  @IsString()
+  @IsString({ message: '"lastName" is required' })
   @MinLength(3)
   lastName: string;
 
-  @IsString()
+  /**
+   * Presently, only UK (GB) and Nigeria (NG) phone numbers are supported. All phone numbers must be prefixed with their respective country phone codes, otherwise phone number validation fails.
+   * @example +234 814 869 6119
+   */
+  @IsString({ message: '"phoneNumber" is required' })
   @Validate(IsAllowedRegionPhoneNumberConstraint, {
-    message: 'Phone number is not valid or supported. Please try again.',
+    message: 'Phone number is not valid or supported',
   })
   phoneNumber: string;
 
   @IsBoolean({
-    message: 'Please accept our terms of service to continue.',
+    message: 'Please accept our terms of service to continue',
   })
   @Validate(IsTrueConstraint, {
-    message: 'Please accept our terms of service to continue.',
+    message: 'Please accept our terms of service to continue',
   })
   terms_of_service: boolean;
 
   @IsStrongPassword({ minLength: 6 })
   password: string;
 
-  @IsString()
+  @IsString({ message: '"confirm_password" is required' })
   confirm_password: string;
 
-  @IsString()
+  /**
+   * Validation for supported countries is not yet implemented, so it'll be done using phone numbers for now.
+   */
+  @IsString({ message: '"country" is required' })
   country: string;
 }
