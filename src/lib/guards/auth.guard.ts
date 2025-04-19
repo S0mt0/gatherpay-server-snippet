@@ -13,7 +13,7 @@ import { PUBLIC_KEY } from '../decorators';
 import { extractAuthHeader } from '../utils';
 import { UsersService } from 'src/users/users.service';
 import { CacheService } from '../services/cache/cache.service';
-import { SESSION_USER } from '../constants';
+import { USER_SESSION } from '../constants';
 
 @Injectable()
 export class AuthenticationGuard implements CanActivate {
@@ -56,7 +56,7 @@ export class AuthenticationGuard implements CanActivate {
     if (!decoded || !decoded.sub || !decoded.email)
       throw new UnauthorizedException('Session expired, please log in again.');
 
-    const user = await this.cache.get(SESSION_USER(decoded.sub));
+    const user = await this.cache.get(USER_SESSION(decoded.sub));
 
     if (!user) throw new NotFoundException('User not found!');
 

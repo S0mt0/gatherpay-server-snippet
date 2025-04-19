@@ -1,6 +1,6 @@
 import { UnauthorizedException } from '@nestjs/common';
 import { Request } from 'express';
-import crypto from 'crypto-js';
+import * as crypto from 'crypto-js';
 
 import {
   JWT_ACCESS_TOKEN_SECRET,

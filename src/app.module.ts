@@ -1,5 +1,5 @@
 import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
-import { Module } from '@nestjs/common';
+import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { JwtModule } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
@@ -19,6 +19,8 @@ import {
   AppConfigModule,
   AppCacheModule,
 } from './lib/services';
+import { DeviceInfoMiddleware } from './lib/middlewares';
+import { AuthController } from './users/auth/auth.controller';
 
 @Module({
   imports: [
@@ -62,4 +64,8 @@ import {
     },
   ],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    consumer.apply(DeviceInfoMiddleware).forRoutes(AuthController);
+  }
+}

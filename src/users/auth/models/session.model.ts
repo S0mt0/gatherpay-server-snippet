@@ -38,7 +38,7 @@ export class Session extends Model<Session> {
   passwordLastChanged: Date;
 
   @Column({
-    type: DataType.STRING,
+    type: DataType.TEXT,
     allowNull: true,
   })
   refresh_token: string;
@@ -57,7 +57,7 @@ export class Session extends Model<Session> {
 
   @Column({
     type: DataType.BOOLEAN,
-    defaultValue: true,
+    defaultValue: false,
   })
   twoFactorEnabled: boolean;
 
@@ -71,4 +71,13 @@ export class Session extends Model<Session> {
 
   @BelongsTo(() => User)
   user: User;
+
+  toJSON() {
+    const session = super.toJSON();
+
+    delete session.refresh_token;
+    delete session.user;
+
+    return session;
+  }
 }

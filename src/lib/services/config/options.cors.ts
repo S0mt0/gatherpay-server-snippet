@@ -14,6 +14,7 @@ const devOrigin = [
   'http://localhost:3000',
   'http://localhost:3001',
   'http://localhost:5173',
+  '::1',
 ];
 
 const isProduction = config.get(NODE_ENV) === 'production';
@@ -29,6 +30,7 @@ export const corsOptions: CorsOptions = {
     'X-Requested-With',
     'Accept',
     'User-Agent',
+    'Cookie',
   ],
 
   credentials: true,

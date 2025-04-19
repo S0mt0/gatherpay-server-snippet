@@ -10,9 +10,10 @@ import {
   BeforeUpdate,
   HasOne,
   BelongsToMany,
+  BeforeValidate,
 } from 'sequelize-typescript';
 import * as argon from 'argon2';
-import { BadRequestException, ConflictException } from '@nestjs/common';
+import { BadRequestException } from '@nestjs/common';
 
 import { getRandomAvatarUrl } from 'src/lib/utils';
 
@@ -45,17 +46,8 @@ export class User extends Model<User> {
 
   @Column({
     type: DataType.STRING,
-    unique: true,
+    unique: { name: 'phoneNumber', msg: 'Phone number taken, try again.' },
     allowNull: true,
-    validate: {
-      isUnique: async (value: string) => {
-        if (value === null) return;
-        const user = await User.findOne({ where: { phoneNumber: value } });
-        if (user) {
-          throw new ConflictException('Phone number already in use.');
-        }
-      },
-    },
   })
   phoneNumber: string;
 
@@ -67,17 +59,10 @@ export class User extends Model<User> {
 
   @Column({
     type: DataType.STRING,
-    unique: true,
+    unique: { name: 'email', msg: 'Email taken, try again.' },
     allowNull: true,
     validate: {
       isEmail: { msg: 'Invalid email' },
-      isUnique: async (value: string) => {
-        if (value === null) return;
-        const user = await User.findOne({ where: { email: value } });
-        if (user) {
-          throw new ConflictException('Email already in use.');
-        }
-      },
     },
   })
   email: string;
@@ -85,9 +70,6 @@ export class User extends Model<User> {
   @Column({
     type: DataType.STRING,
     allowNull: false,
-    defaultValue: function () {
-      return `${this.firstName} ${this.lastName}`;
-    },
   })
   username: string;
 
@@ -121,12 +103,6 @@ export class User extends Model<User> {
     defaultValue: () => getRandomAvatarUrl(),
   })
   avatarUrl: string;
-
-  @Column({
-    type: DataType.STRING,
-    allowNull: true,
-  })
-  refresh_token: string;
 
   @ForeignKey(() => AccountDetail)
   @Column({
@@ -169,13 +145,21 @@ export class User extends Model<User> {
 
   async verifyPassword(password: string): Promise<boolean> {
     if (!this.password) return false;
-    return await argon.verify(password, this.password);
+
+    return await argon.verify(this.password, password);
   }
 
   @BeforeSave
   static async hashPassword(user: User) {
     if (user.password) {
       user.password = await argon.hash(user.password);
+    }
+  }
+
+  @BeforeValidate
+  static setUsername(user: User) {
+    if (!user.username && user.firstName && user.lastName) {
+      user.username = `${user.firstName} ${user.lastName}`;
     }
   }
 
@@ -194,7 +178,6 @@ export class User extends Model<User> {
     delete user.default_account_id;
     delete user.auth_method;
     delete user.updatedAt;
-    delete user.refresh_token;
 
     return user;
   }

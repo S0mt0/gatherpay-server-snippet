@@ -92,3 +92,9 @@ export type Days = 1 | 2 | 3 | 4 | 5 | 6 | 7;
 export type TimeInMilliseconds<T extends string | number | symbol> = {
   [key in T]: number;
 };
+
+export interface IDeviceInfo {
+  ip: string;
+  device: string;
+  userAgent: string;
+}

@@ -44,4 +44,12 @@ export class TwilioService {
         code,
       });
   }
+
+  async sendMessage(phoneNumber: string, from: string = '+447949570728') {
+    return await this.client.messages.create({
+      from,
+      body: 'Congratulations latif , weekly payments has been successfully scheduled',
+      to: phoneNumber,
+    });
+  }
 }

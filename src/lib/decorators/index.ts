@@ -1,28 +1,50 @@
-import { applyDecorators, SetMetadata, UseGuards } from '@nestjs/common';
 import {
   createParamDecorator,
   ExecutionContext,
   ForbiddenException,
+  applyDecorators,
+  SetMetadata,
+  UseGuards,
 } from '@nestjs/common';
 import { Request } from 'express';
 
 import { AuthenticationGuard } from '../guards/auth.guard';
 
-export const ParsedJWTCookie = createParamDecorator(
-  (key: string = 'jwt', ctx: ExecutionContext) => {
+export const ParseSessionCookie = createParamDecorator(
+  (key: string = 's_id', ctx: ExecutionContext): string => {
     const request = ctx.switchToHttp().getRequest<Request>();
-    const cookie = request.cookies[key];
+    const cookie = request.cookies?.[key];
 
-    if (!cookie)
-      throw new ForbiddenException('Session expired, please log in again.');
+    if (!cookie) {
+      throw new ForbiddenException('Session expired, try again.');
+    }
 
     return cookie;
   },
 );
 
+export const DeviceInfo = createParamDecorator(
+  (data: string, ctx: ExecutionContext) => {
+    const request = ctx.switchToHttp().getRequest<Request>();
+    const deviceInfo = request['deviceInfo'];
+
+    return data ? deviceInfo?.[data] : deviceInfo;
+  },
+);
+
+export const User = createParamDecorator(
+  (data: string, ctx: ExecutionContext) => {
+    const request = ctx.switchToHttp().getRequest<Request>();
+    const user = request['user'];
+
+    return data ? user?.[data] : user;
+  },
+);
+
 export const MESSAGE_KEY = 'message';
-export const Message = (message: string = 'Success') =>
-  SetMetadata(MESSAGE_KEY, message);
+export const Message = (message: string = 'Success') => {
+  return SetMetadata(MESSAGE_KEY, message);
+};
 
 export const PUBLIC_KEY = 'IS_PUBLIC';
 export const Public = () => SetMetadata(PUBLIC_KEY, true);
