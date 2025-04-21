@@ -65,22 +65,22 @@ export function generateMinutes(): TimeInMilliseconds<Minutes> {
   return minutes;
 }
 
-export function extractAuthHeader(req: Request) {
+export function extractBearerToken(req: Request) {
   const authorization =
     req.headers['authorization'] || (req.headers['Authorization'] as string);
 
   if (!authorization || !authorization.startsWith('Bearer '))
-    throw new UnauthorizedException('Missing or invalid authorization header.');
+    throw new UnauthorizedException('Missing bearer token');
 
   return authorization.split(' ')[1] as string;
 }
 
 export const obscurePhoneNumber = (phoneNumber: string) => {
-  if (phoneNumber.length <= 5) return phoneNumber;
+  if (phoneNumber.length <= 10) return phoneNumber;
 
   const firstTwo = phoneNumber.slice(0, 7);
-  const lastTwo = phoneNumber.slice(-3);
-  const obscuredMiddle = '*'.repeat(phoneNumber.length - 8);
+  const lastTwo = phoneNumber.slice(-4);
+  const obscuredMiddle = '*'.repeat(phoneNumber.length - 10);
 
   return `${firstTwo}${obscuredMiddle}${lastTwo}`;
 };

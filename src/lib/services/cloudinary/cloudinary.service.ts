@@ -45,7 +45,7 @@ export class CloudinaryService {
     return `IMG_${Date.now()}`;
   }
 
-  async uploadStream(file: Express.Multer.File): Promise<{ url: string }> {
+  async uploadFileStream(file: Express.Multer.File): Promise<{ url: string }> {
     const public_id = await this.validateFile(file);
 
     const uploadStream = new stream.PassThrough();
@@ -91,6 +91,7 @@ export class CloudinaryService {
     if (parts) fileName = parts[parts?.length - 1].split('.')[0];
 
     const old_public_id = `${this.u_preset}/${fileName}`;
+
     await cloudinary.uploader.destroy(old_public_id, {
       invalidate: true,
       resource_type: 'image',

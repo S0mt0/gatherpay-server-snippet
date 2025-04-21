@@ -27,8 +27,8 @@ export class TwilioService {
     });
   }
 
-  async createVerifyCode(phoneNumber: string, channel: string = 'sms') {
-    return await this.client.verify.v2
+  createVerifyCode(phoneNumber: string, channel: string = 'sms') {
+    return this.client.verify.v2
       .services(this.serviceSID)
       .verifications.create({
         to: phoneNumber,
@@ -36,8 +36,8 @@ export class TwilioService {
       });
   }
 
-  async createVerificationCheck(phoneNumber: string, code: string) {
-    return await this.client.verify.v2
+  createVerificationCheck(phoneNumber: string, code: string) {
+    return this.client.verify.v2
       .services(this.serviceSID)
       .verificationChecks.create({
         to: phoneNumber,
@@ -45,11 +45,11 @@ export class TwilioService {
       });
   }
 
-  async sendMessage(phoneNumber: string, from: string = '+447949570728') {
-    return await this.client.messages.create({
+  sendMessage(to: string, from: string = '+447949570728', body: string) {
+    return this.client.messages.create({
       from,
-      body: 'Congratulations latif , weekly payments has been successfully scheduled',
-      to: phoneNumber,
+      to,
+      body,
     });
   }
 }

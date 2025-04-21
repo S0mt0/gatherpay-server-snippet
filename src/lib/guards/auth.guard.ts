@@ -10,7 +10,7 @@ import { JwtService } from '@nestjs/jwt';
 import { Request } from 'express';
 
 import { PUBLIC_KEY } from '../decorators';
-import { extractAuthHeader } from '../utils';
+import { extractBearerToken } from '../utils';
 import { UsersService } from 'src/users/users.service';
 import { CacheService } from '../services/cache/cache.service';
 import { USER_SESSION } from '../constants';
@@ -35,7 +35,7 @@ export class AuthenticationGuard implements CanActivate {
 
     let token: string;
     try {
-      token = extractAuthHeader(request);
+      token = extractBearerToken(request);
     } catch (error) {
       throw new UnauthorizedException(error.message);
     }

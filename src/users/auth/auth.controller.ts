@@ -22,7 +22,7 @@ import {
 import { CreateUserDto } from './dto';
 
 import { TIME_IN } from 'src/lib/constants';
-import { DeviceInfo, Message, ParsedSessionCookie } from 'src/lib/decorators';
+import { DeviceInfo, Message, ParseSessionCookie } from 'src/lib/decorators';
 import { getExampleResponseObject } from 'src/lib/utils';
 import { IDeviceInfo } from 'src/lib/interface';
 import { AuthService } from './auth.service';
@@ -30,14 +30,14 @@ import { AuthService } from './auth.service';
 const REFRESH_TOKEN = 'refresh_token';
 const S_ID = 's_id';
 
-@ApiResponse({ example: getExampleResponseObject({}) })
 @Message()
+@ApiResponse({ example: getExampleResponseObject({}) })
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
   /**
-   * Signup / create new account
+   * Sign-up / create new account
    *
    * @remarks This operation initiates registration/creation of a new user account. If phone number verification isn't completed, registraion fails and data will not be persisted to database. This means the same credentials can be used to sign up for an account.
    *
@@ -74,7 +74,7 @@ export class AuthController {
    * Account / phone number verification
    *
    * @remarks After registration is initiated, user is expected to verify their phone number (within 10 minutes) using the code sent during sign up. `Code` sent is valid for only 10 minutes.
-   * If verification is successful, `client` can choose to automatically authorize *user* as `user` document and `access_token` are both returned in the response data and `refresh token` through response `cookie`. *NOTE:* `access token` is short-lived, while cookie `refresh token` is valid for 7 days. *HINT:* Client is advised to use `interceptors` to intercept all outgoing request and check if access token is expired, in that case immediately hit the `/auth/refresh-token` endpoint to refresh their token then attach the refreshed token to the previously rejected outgoing request and try again. Alternatively, client can always refresh token via the refresh route each time component mounts.
+   * If verification is successful, `client` can choose to automatically authorize *user* as `user` document and `access_token` are both returned in the response data and `refresh token` through response `cookie`. *NOTE:* `access token` is short-lived, while cookie `refresh token` is valid for 3 days. *HINT:* Client is advised to use `interceptors` to intercept all outgoing request and check if access token is expired, in that case immediately hit the `/auth/refresh-token` endpoint to refresh their token then attach the refreshed token to the previously rejected outgoing request and try again. Alternatively, client can always refresh token via the refresh route each time component mounts.
    *
    * @throws {401} `Unauthorized` - Registration session expired.
    * @throws {403} `Forbidden` - Invalid or expired `verification code`
@@ -91,7 +91,7 @@ export class AuthController {
   @Message('Verification completed🎊')
   @Post('verify')
   async verifyAccount(
-    @ParsedSessionCookie() sessionId: string,
+    @ParseSessionCookie() sessionId: string,
     @DeviceInfo() deviceInfo: IDeviceInfo,
     @Body() verifyAccountDto: CodeDto,
     @Res({ passthrough: true }) res: Response,
@@ -108,7 +108,7 @@ export class AuthController {
       httpOnly: true,
       secure: true,
       sameSite: 'none',
-      maxAge: TIME_IN.days[7],
+      maxAge: TIME_IN.days[3],
     });
 
     return data;
@@ -127,7 +127,7 @@ export class AuthController {
   @Get('verify/resend')
   async resendSignUpVerificationCode(
     @Res({ passthrough: true }) res: Response,
-    @ParsedSessionCookie() sessionId: string,
+    @ParseSessionCookie() sessionId: string,
   ) {
     const session =
       await this.authService.resendSignUpVerificationCode(sessionId);
@@ -143,7 +143,7 @@ export class AuthController {
   /**
    * Login with credentials
    *
-   * @remarks NOTE:* `access token` is short-lived, while cookie `refresh token` is valid for 7 days. *HINT:* Client is advised to use `interceptors` to intercept all outgoing request and check if access token is expired, in that case immediately hit the `/auth/refresh-token` endpoint to refresh their token then attach the refreshed token to the previously rejected outgoing request and try again. Alternatively, client can always refresh token via the refresh route each time component mounts.
+   * @remarks NOTE:* `access token` is short-lived, while cookie `refresh token` is valid for 3 days. *HINT:* Client is advised to use `interceptors` to intercept all outgoing request and check if access token is expired, in that case immediately hit the `/auth/refresh-token` endpoint to refresh their token then attach the refreshed token to the previously rejected outgoing request and try again. Alternatively, client can always refresh token via the refresh route each time component mounts.
    *
    * @throws {401} `Unauthorized` - Invalid credentials
    * @throws {403} `Forbidden` - Unverified account
@@ -156,8 +156,8 @@ export class AuthController {
       data: { user: {}, access_token: 'eg.Example.XXXXXXX.Token' },
     }),
   })
-  @HttpCode(HttpStatus.OK)
   @Message('Welcome back!🎊')
+  @HttpCode(HttpStatus.OK)
   @Throttle({ default: { limit: 10, ttl: TIME_IN.minutes[1] } })
   @Post('sign-in')
   async login(
@@ -174,7 +174,7 @@ export class AuthController {
       httpOnly: true,
       secure: true,
       sameSite: 'none',
-      maxAge: TIME_IN.days[7],
+      maxAge: TIME_IN.days[3],
     });
 
     return data;
@@ -224,7 +224,7 @@ export class AuthController {
   async verifyPasswordResetCode(
     @Body() resetPasswordDto: CodeDto,
     @Res({ passthrough: true }) res: Response,
-    @ParsedSessionCookie() sessionId: string,
+    @ParseSessionCookie() sessionId: string,
   ) {
     const session = await this.authService.verifyForgotPasswordCode(
       sessionId,
@@ -251,7 +251,7 @@ export class AuthController {
   @Put('password/reset')
   resetPassword(
     @Body() newPasswordDto: NewPasswordDto,
-    @ParsedSessionCookie() sessionId: string,
+    @ParseSessionCookie() sessionId: string,
   ) {
     return this.authService.resetPassword(sessionId, newPasswordDto);
   }
@@ -268,7 +268,7 @@ export class AuthController {
   @Get('password/resend-code')
   async resendForgotPasswordCode(
     @Res({ passthrough: true }) res: Response,
-    @ParsedSessionCookie() sessionId: string,
+    @ParseSessionCookie() sessionId: string,
   ) {
     const { session, message } =
       await this.authService.resendForgotPasswordCode(sessionId);
@@ -286,7 +286,7 @@ export class AuthController {
   /**
    * Logout
    *
-   * @throws {401} `Unauthorized` - No valid session available to logout
+   * @throws {401} `Unauthorized` - No valid session or user available to logout
    * @throws {500} `Internal Server Error`
    */
   @ApiResponse({
@@ -295,10 +295,10 @@ export class AuthController {
     }),
   })
   @HttpCode(HttpStatus.NO_CONTENT)
-  @Get('logout')
+  @Get('sign-out')
   logout(
     @Res({ passthrough: true }) res: Response,
-    @ParsedSessionCookie(REFRESH_TOKEN) refresh_token: string,
+    @ParseSessionCookie(REFRESH_TOKEN) refresh_token: string,
   ) {
     res.clearCookie(REFRESH_TOKEN);
     res.status(HttpStatus.NO_CONTENT);
@@ -308,7 +308,7 @@ export class AuthController {
   /**
    * Refresh access token
    *
-   * @throws {401} `Unauthorized` - No valid session available to be refreshed
+   * @throws {401} `Unauthorized` - No valid session or user available to be refreshed
    * @throws {500} `Internal Server Error`
    */
   @ApiResponse({
@@ -318,7 +318,7 @@ export class AuthController {
     }),
   })
   @Get('refresh-token')
-  refreshToken(@ParsedSessionCookie(REFRESH_TOKEN) refresh_token: string) {
+  refreshToken(@ParseSessionCookie(REFRESH_TOKEN) refresh_token: string) {
     return this.authService.refreshToken(refresh_token);
   }
 }

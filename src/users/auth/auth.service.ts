@@ -43,9 +43,12 @@ export class AuthService {
   ) {}
 
   async signUp(dto: CreateUserDto, sessionId: string) {
-    const decrypted = decrypt(sessionId || '');
+    // Check if there's an active signup session that hasn't completed verification.
+    const signUpSession = await this.cache.get<CreateUserDto>(
+      SIGN_UP_SESSION(decrypt(sessionId || '')),
+    );
 
-    if (decrypted && decrypted === dto.phoneNumber)
+    if (signUpSession)
       throw new ConflictException(
         'Phone number already in use, please verify your account.',
       );
@@ -59,6 +62,7 @@ export class AuthService {
       },
     });
 
+    // Check if a verified user with the same phone number exists
     if (userExists && userExists.verified_phone)
       throw new ConflictException('Phone number already in use, try again.');
 
@@ -113,7 +117,7 @@ export class AuthService {
   async verifyAccount(
     sessionId: string,
     dto: CodeDto,
-    IdeviceInfo: IDeviceInfo,
+    deviceInfo: IDeviceInfo,
   ) {
     const signUpSession = await this.cache.get<CreateUserDto>(
       SIGN_UP_SESSION(decrypt(sessionId || '')),
@@ -130,13 +134,11 @@ export class AuthService {
       dto.code,
     );
 
-    console.log({ verificationCheckInstance });
-
     if (verificationCheckInstance.status !== 'approved') {
       throw new ForbiddenException('Expired or incorrect code, try again.');
     }
 
-    return await this.createVerifiedUser(signUpSession, IdeviceInfo);
+    return await this.createVerifiedUser(signUpSession, deviceInfo);
   }
 
   private async createVerifiedUser(
@@ -159,11 +161,13 @@ export class AuthService {
         this.generateRefreshToken(user.id),
       ]);
 
+      const encrypted_refresh_token = encrypt(refresh_token);
+
       await this.updateUserSession({
-        transaction,
         userId: user.id,
-        refresh_token,
+        refresh_token: encrypted_refresh_token,
         deviceInfo,
+        transaction,
       });
 
       await transaction.commit();
@@ -173,7 +177,7 @@ export class AuthService {
         this.cacheSessionUser(user),
       ]);
 
-      return { user, access_token, refresh_token };
+      return { user, access_token, refresh_token: encrypted_refresh_token };
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (error) {
       await transaction.rollback();
@@ -189,7 +193,7 @@ export class AuthService {
     );
   }
 
-  private async generateAccessToken(
+  private generateAccessToken(
     userId: string,
     isCredentials = true,
   ): Promise<string> {
@@ -199,7 +203,7 @@ export class AuthService {
     });
   }
 
-  private async generateRefreshToken(
+  private generateRefreshToken(
     userId: string,
     isCredentials = true,
   ): Promise<string> {
@@ -210,9 +214,18 @@ export class AuthService {
       },
       {
         secret: this.configService.get(JWT_REFRESH_TOKEN_SECRET),
-        expiresIn: this.configService.get(JWT_REFRESH_TOKEN_EXP, '7d'),
+        expiresIn: this.configService.get(JWT_REFRESH_TOKEN_EXP, '3d'),
       },
     );
+  }
+
+  private verifyRefreshToken(token: string) {
+    return this.jwtService.verifyAsync<{
+      sub: string;
+      isCredentials: boolean;
+    }>(token, {
+      secret: this.configService.get(JWT_REFRESH_TOKEN_SECRET),
+    });
   }
 
   private async updateUserSession({
@@ -221,10 +234,10 @@ export class AuthService {
     transaction,
     userId,
   }: {
-    transaction?: Transaction;
     userId: string;
     refresh_token: string;
     deviceInfo?: IDeviceInfo;
+    transaction?: Transaction;
   }): Promise<void> {
     if (!deviceInfo.device.trim().length) {
       console.log('Invalid device information');
@@ -246,7 +259,6 @@ export class AuthService {
 
     const existingSession = await this.sessionModel.findOne({
       where: { userId },
-      transaction,
     });
 
     const currentDevices = existingSession?.logged_in_devices || [];
@@ -260,7 +272,7 @@ export class AuthService {
     await this.sessionModel.upsert(
       {
         userId,
-        refresh_token: encrypt(refresh_token),
+        refresh_token,
         lastLoggedIn: new Date(),
         deviceIpAddress: deviceInfo.ip,
         deviceLastLoggedIn: deviceInfo.device,
@@ -295,12 +307,17 @@ export class AuthService {
       this.generateRefreshToken(user.id),
     ]);
 
-    await Promise.all([
-      this.updateUserSession({ userId: user.id, refresh_token, deviceInfo }),
-      this.cacheSessionUser(user),
-    ]);
+    const encrypted_refresh_token = encrypt(refresh_token);
 
-    return { user, access_token, refresh_token };
+    await this.updateUserSession({
+      userId: user.id,
+      refresh_token: encrypted_refresh_token,
+      deviceInfo,
+    });
+
+    await this.cacheSessionUser(user);
+
+    return { user, access_token, refresh_token: encrypted_refresh_token };
   }
 
   forgotPassword = async (dto: ForgotPasswordDto) => {
@@ -381,10 +398,8 @@ export class AuthService {
       throw new UnprocessableEntityException('Passwords do not match');
 
     user.password = dto.new_password;
-    await Promise.all([
-      user.save(),
-      this.cache.delete(PASSWORD_SESSION(user.phoneNumber)),
-    ]);
+    await user.save();
+    await this.cache.delete(PASSWORD_SESSION(user.phoneNumber));
   }
 
   refreshToken = async (refresh_token: string) => {
@@ -393,7 +408,20 @@ export class AuthService {
     });
 
     if (!activeSession)
-      throw new UnauthorizedException('Session expired, please log in again.');
+      throw new UnauthorizedException(
+        'Hey champ! Your session has expired, please log in again.',
+      );
+
+    const decoded = await this.verifyRefreshToken(decrypt(refresh_token));
+
+    const user = await this.userModel.findOne({
+      where: { id: decoded.sub },
+    });
+
+    if (!user) {
+      await activeSession.destroy();
+      throw new UnauthorizedException();
+    }
 
     const access_token = await this.generateAccessToken(activeSession.userId);
 
@@ -401,14 +429,25 @@ export class AuthService {
   };
 
   async logout(refresh_token: string) {
-    const session = await this.sessionModel.findOne({
+    const activeSession = await this.sessionModel.findOne({
       where: { refresh_token },
     });
 
-    if (!session) throw new UnauthorizedException();
+    if (!activeSession) throw new UnauthorizedException();
+
+    const decoded = await this.verifyRefreshToken(decrypt(refresh_token));
+
+    const user = await this.userModel.findOne({
+      where: { id: decoded.sub },
+    });
+
+    if (!user) {
+      await activeSession.destroy();
+      throw new UnauthorizedException();
+    }
 
     await this.sessionModel.update(
-      { refresh_token: '' },
+      { refresh_token: null },
       {
         where: { refresh_token },
       },
