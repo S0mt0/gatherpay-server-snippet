@@ -6,7 +6,7 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import * as cookieParser from 'cookie-parser';
 
 import { AppModule } from './app.module';
-import { app_description, corsOptions } from './lib/services/config';
+import { app_description, createCorsOptions } from './lib/services/config';
 import { APP_NAME, APP_VERSION, PORT } from './lib/constants';
 import { AllExceptionsFilter } from './lib/filters';
 
@@ -25,11 +25,11 @@ async function bootstrap() {
     }),
   );
 
+  const configService = app.get(ConfigService);
+
   app.use(helmet());
   app.use(cookieParser());
-  app.enableCors(corsOptions);
-
-  const configService = app.get(ConfigService);
+  app.enableCors(createCorsOptions(configService));
 
   const config = new DocumentBuilder()
     .setTitle(APP_NAME)
