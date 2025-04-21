@@ -78,9 +78,9 @@ export function extractAuthHeader(req: Request) {
 export const obscurePhoneNumber = (phoneNumber: string) => {
   if (phoneNumber.length <= 5) return phoneNumber;
 
-  const firstTwo = phoneNumber.slice(0, 4);
-  const lastTwo = phoneNumber.slice(-4);
-  const obscuredMiddle = '*'.repeat(phoneNumber.length - 4);
+  const firstTwo = phoneNumber.slice(0, 7);
+  const lastTwo = phoneNumber.slice(-3);
+  const obscuredMiddle = '*'.repeat(phoneNumber.length - 8);
 
   return `${firstTwo}${obscuredMiddle}${lastTwo}`;
 };
@@ -112,8 +112,30 @@ export const decrypt = (
 
   try {
     return JSON.parse(bytes.toString(crypto.enc.Utf8));
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
   } catch (error) {
-    console.error({ error });
     return bytes.toString(crypto.enc.Utf8);
   }
+};
+
+export const getExampleResponseObject = ({
+  statusCode = 200,
+  data = {},
+}: {
+  statusCode?: number;
+  data?: object;
+}) => {
+  if ((Array.isArray(data) && data.length) || Object.keys(data).length)
+    return {
+      statusCode,
+      message: 'Success',
+      data,
+      timestamp: '2025-04-14T13:47:23.456Z',
+    };
+
+  return {
+    statusCode,
+    message: 'Success',
+    timestamp: '2025-04-14T13:47:23.456Z',
+  };
 };

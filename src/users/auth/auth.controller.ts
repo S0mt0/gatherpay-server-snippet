@@ -6,11 +6,12 @@ import {
   HttpStatus,
   Post,
   Put,
+  Req,
   Res,
 } from '@nestjs/common';
-import { Response } from 'express';
+import { Request, Response } from 'express';
 import { Throttle } from '@nestjs/throttler';
-import { ApiOkResponse } from '@nestjs/swagger';
+import { ApiResponse } from '@nestjs/swagger';
 
 import {
   LoginUserDto,
@@ -21,42 +22,47 @@ import {
 import { CreateUserDto } from './dto';
 
 import { TIME_IN } from 'src/lib/constants';
-import { DeviceInfo, Message, ParseSessionCookie } from 'src/lib/decorators';
-import { BaseResponseDto } from 'src/lib/utils';
+import { DeviceInfo, Message, ParsedSessionCookie } from 'src/lib/decorators';
+import { getExampleResponseObject } from 'src/lib/utils';
 import { IDeviceInfo } from 'src/lib/interface';
 import { AuthService } from './auth.service';
 
 const REFRESH_TOKEN = 'refresh_token';
 const S_ID = 's_id';
 
+@ApiResponse({ example: getExampleResponseObject({}) })
 @Message()
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
   /**
-   * Signup/create new account
+   * Signup / create new account
    *
-   * @remarks This operation initiates registration/creation of a new user account. If phone number verification isn't completed, registraion fails and data will not be persisted to database. This means someone else can try using the same credentials for registration.
+   * @remarks This operation initiates registration/creation of a new user account. If phone number verification isn't completed, registraion fails and data will not be persisted to database. This means the same credentials can be used to sign up for an account.
    *
-   * @throws {500} `Internal Server Error`
+   * @throws {409} `Conflict` - When there's already an active signup session with the same credentials or user already exists
    * @throws {422} `Unprocessable Entity` - When payload validation fails
-   * @throws {409} `Conflict` - When there's already an active signup session with the same credentials
-   * @throws {429} `Too Many Requests` - Limited to 10 requests per minute
+   * @throws {429} `Too Many Requests` - Limited to 5 requests per minute
+   * @throws {500} `Internal Server Error`
+   * @throws {502} `BadGateway` Error sending verification code via `twilio verify` service.
    */
 
-  @ApiOkResponse({ example: BaseResponseDto })
   @HttpCode(HttpStatus.OK)
-  @Throttle({ default: { limit: 10, ttl: TIME_IN.minutes[1] } })
+  @Throttle({ default: { limit: 5, ttl: TIME_IN.minutes[1] } })
   @Message('A verification code has been sent to your phone number')
   @Post('sign-up')
   async signUp(
     @Body() createUserDto: CreateUserDto,
     @Res({ passthrough: true }) res: Response,
+    @Req() req: Request,
   ) {
-    const sessionId = await this.authService.signUp(createUserDto);
+    const session = await this.authService.signUp(
+      createUserDto,
+      req.cookies?.[S_ID],
+    );
 
-    res.cookie(S_ID, sessionId, {
+    res.cookie(S_ID, session, {
       secure: true,
       httpOnly: true,
       sameSite: 'none',
@@ -65,24 +71,30 @@ export class AuthController {
   }
 
   /**
-   * Account/phone number verification
+   * Account / phone number verification
    *
-   * @remarks After registration is initiated, user is expected to verify their phone number using the code sent during sign up.
+   * @remarks After registration is initiated, user is expected to verify their phone number (within 10 minutes) using the code sent during sign up. `Code` sent is valid for only 10 minutes.
    * If verification is successful, `client` can choose to automatically authorize *user* as `user` document and `access_token` are both returned in the response data and `refresh token` through response `cookie`. *NOTE:* `access token` is short-lived, while cookie `refresh token` is valid for 7 days. *HINT:* Client is advised to use `interceptors` to intercept all outgoing request and check if access token is expired, in that case immediately hit the `/auth/refresh-token` endpoint to refresh their token then attach the refreshed token to the previously rejected outgoing request and try again. Alternatively, client can always refresh token via the refresh route each time component mounts.
    *
-   * @throws {500} `Internal Server Error`
-   * @throws {422} `Unprocessable Entity` - When payload validation fails
    * @throws {401} `Unauthorized` - Registration session expired.
    * @throws {403} `Forbidden` - Invalid or expired `verification code`
+   * @throws {422} `Unprocessable Entity` - When payload validation fails
+   * @throws {500} `Internal Server Error`
+   * @throws {502} `BadGateway` Error verifying code via `twilio verify` service.
    */
-  @ApiOkResponse({ example: BaseResponseDto })
+  @ApiResponse({
+    example: getExampleResponseObject({
+      statusCode: HttpStatus.CREATED,
+      data: { user: {}, access_token: 'eg.Example.XXXXXXX.Token' },
+    }),
+  })
   @Message('Verification completed🎊')
   @Post('verify')
   async verifyAccount(
+    @ParsedSessionCookie() sessionId: string,
     @DeviceInfo() deviceInfo: IDeviceInfo,
-    @Res({ passthrough: true }) res: Response,
     @Body() verifyAccountDto: CodeDto,
-    @ParseSessionCookie() sessionId: string,
+    @Res({ passthrough: true }) res: Response,
   ) {
     const { refresh_token, ...data } = await this.authService.verifyAccount(
       sessionId,
@@ -108,15 +120,14 @@ export class AuthController {
    * @throws {401} `Unauthorized` - Registration session expired.
    * @throws {429} `Too Many Requests` - Limited to 4 requests per minute
    * @throws {500} `Internal Server Error`
-   * @throws {502} `Bad Gateway Error` Error sending code via Twilio
+   * @throws {502} `BadGateway` Error sending code via `Twilio verify` service
    */
-  @ApiOkResponse({ type: BaseResponseDto })
   @Throttle({ default: { limit: 4, ttl: TIME_IN.minutes[1] } })
   @Message('Code sent!')
   @Get('verify/resend')
   async resendSignUpVerificationCode(
     @Res({ passthrough: true }) res: Response,
-    @ParseSessionCookie() sessionId: string,
+    @ParsedSessionCookie() sessionId: string,
   ) {
     const session =
       await this.authService.resendSignUpVerificationCode(sessionId);
@@ -140,7 +151,11 @@ export class AuthController {
    * @throws {429} `Too Many Requests` - Limited to 10 requests per minute
    * @throws {500} `Internal Server Error`
    */
-  @ApiOkResponse({ example: BaseResponseDto })
+  @ApiResponse({
+    example: getExampleResponseObject({
+      data: { user: {}, access_token: 'eg.Example.XXXXXXX.Token' },
+    }),
+  })
   @HttpCode(HttpStatus.OK)
   @Message('Welcome back!🎊')
   @Throttle({ default: { limit: 10, ttl: TIME_IN.minutes[1] } })
@@ -175,17 +190,16 @@ export class AuthController {
    * @throws {502} `Bad Gateway Error` Error sending code via Twilio
    */
   @Throttle({ default: { limit: 4, ttl: TIME_IN.minutes[1] } })
-  @ApiOkResponse({ type: BaseResponseDto })
   @HttpCode(HttpStatus.OK)
   @Post('password/forget')
   async forgotPassword(
     @Body() forgotPasswordDto: ForgotPasswordDto,
     @Res({ passthrough: true }) res: Response,
   ) {
-    const { sessionId, message } =
+    const { session, message } =
       await this.authService.forgotPassword(forgotPasswordDto);
 
-    res.cookie(S_ID, sessionId, {
+    res.cookie(S_ID, session, {
       httpOnly: true,
       secure: true,
       sameSite: 'none',
@@ -199,23 +213,22 @@ export class AuthController {
    * Verify code to reset forgotten password
    *
    * @throws {401} `Unauthorized` - Session expired
-   * @throws {422} `Unprocessable Entity` - When payload validation fails
    * @throws {403} `Forbidden` - Expired or incorrect verification code
+   * @throws {422} `Unprocessable Entity` - When payload validation fails
    * @throws {500} `Internal Server Error`
-   * @throws {502} `Bad Gateway Error` Error sending code via Twilio
+   * @throws {502} `BadGateway Error` Error sending code via Twilio
    */
-  @ApiOkResponse({ type: BaseResponseDto })
   @Message('You rock! Now, create a new password🎊')
   @HttpCode(HttpStatus.OK)
   @Post('password/verify')
   async verifyPasswordResetCode(
-    @Body() resetPasswordDTO: CodeDto,
+    @Body() resetPasswordDto: CodeDto,
     @Res({ passthrough: true }) res: Response,
-    @ParseSessionCookie() sessionId: string,
+    @ParsedSessionCookie() sessionId: string,
   ) {
     const session = await this.authService.verifyForgotPasswordCode(
-      resetPasswordDTO,
       sessionId,
+      resetPasswordDto,
     );
 
     res.cookie(S_ID, session, {
@@ -234,14 +247,13 @@ export class AuthController {
    * @throws {500} `Internal Server Error`
    */
   @Message('Voila! Your password has been changed🥳')
-  @ApiOkResponse({ type: BaseResponseDto })
   @HttpCode(HttpStatus.OK)
   @Put('password/reset')
   resetPassword(
-    @ParseSessionCookie() sessionId: string,
     @Body() newPasswordDto: NewPasswordDto,
+    @ParsedSessionCookie() sessionId: string,
   ) {
-    return this.authService.resetPassword(newPasswordDto, sessionId);
+    return this.authService.resetPassword(sessionId, newPasswordDto);
   }
 
   /**
@@ -256,12 +268,12 @@ export class AuthController {
   @Get('password/resend-code')
   async resendForgotPasswordCode(
     @Res({ passthrough: true }) res: Response,
-    @ParseSessionCookie() session: string,
+    @ParsedSessionCookie() sessionId: string,
   ) {
-    const { sessionId, message } =
-      await this.authService.resendForgotPasswordCode(session);
+    const { session, message } =
+      await this.authService.resendForgotPasswordCode(sessionId);
 
-    res.cookie(S_ID, sessionId, {
+    res.cookie(S_ID, session, {
       httpOnly: true,
       secure: true,
       sameSite: 'none',
@@ -271,27 +283,42 @@ export class AuthController {
     return message;
   }
 
-  // @Message('Logout successful')
-  // @Get('logout')
-  // async logout(
-  //   @Res({ passthrough: true }) res: Response,
-  //   @ParseSessionCookie(RT_COOKIE_KEY) refresh_token: string,
-  // ) {
-  //   res.clearCookie(RT_COOKIE_KEY);
-  //   res.status(HttpStatus.NO_CONTENT);
-  //   return this.authService.logout(refresh_token);
-  // }
+  /**
+   * Logout
+   *
+   * @throws {401} `Unauthorized` - No valid session available to logout
+   * @throws {500} `Internal Server Error`
+   */
+  @ApiResponse({
+    example: getExampleResponseObject({
+      statusCode: HttpStatus.NO_CONTENT,
+    }),
+  })
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @Get('logout')
+  logout(
+    @Res({ passthrough: true }) res: Response,
+    @ParsedSessionCookie(REFRESH_TOKEN) refresh_token: string,
+  ) {
+    res.clearCookie(REFRESH_TOKEN);
+    res.status(HttpStatus.NO_CONTENT);
+    return this.authService.logout(refresh_token);
+  }
 
-  // @Get('refresh-token')
-  // async refreshToken(
-  //   @Res({ passthrough: true }) res: Response,
-  //   @ParseSessionCookie(RT_COOKIE_KEY) refresh_token: string,
-  // ) {
-  //   const { user, token } = await this.authService.refreshToken(refresh_token);
-
-  //   res.setHeader('Authorization', token);
-  //   res.status(HttpStatus.OK);
-
-  //   return user;
-  // }
+  /**
+   * Refresh access token
+   *
+   * @throws {401} `Unauthorized` - No valid session available to be refreshed
+   * @throws {500} `Internal Server Error`
+   */
+  @ApiResponse({
+    example: getExampleResponseObject({
+      statusCode: HttpStatus.OK,
+      data: { access_token: 'eg.Example.XXXXXXX.Token' },
+    }),
+  })
+  @Get('refresh-token')
+  refreshToken(@ParsedSessionCookie(REFRESH_TOKEN) refresh_token: string) {
+    return this.authService.refreshToken(refresh_token);
+  }
 }

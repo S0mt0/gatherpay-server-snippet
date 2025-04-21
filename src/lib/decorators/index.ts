@@ -1,22 +1,22 @@
 import {
   createParamDecorator,
   ExecutionContext,
-  ForbiddenException,
   applyDecorators,
   SetMetadata,
   UseGuards,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { Request } from 'express';
 
 import { AuthenticationGuard } from '../guards/auth.guard';
 
-export const ParseSessionCookie = createParamDecorator(
+export const ParsedSessionCookie = createParamDecorator(
   (key: string = 's_id', ctx: ExecutionContext): string => {
     const request = ctx.switchToHttp().getRequest<Request>();
     const cookie = request.cookies?.[key];
 
     if (!cookie) {
-      throw new ForbiddenException('Session expired, try again.');
+      throw new UnauthorizedException('Session expired, try again.');
     }
 
     return cookie;

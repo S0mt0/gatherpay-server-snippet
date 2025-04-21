@@ -2,7 +2,6 @@ import { Transaction } from 'sequelize';
 import { InjectModel } from '@nestjs/sequelize';
 import {
   BadGatewayException,
-  BadRequestException,
   ConflictException,
   ForbiddenException,
   Injectable,
@@ -43,7 +42,14 @@ export class AuthService {
     @InjectModel(Session) private sessionModel: typeof Session,
   ) {}
 
-  async signUp(dto: CreateUserDto) {
+  async signUp(dto: CreateUserDto, sessionId: string) {
+    const decrypted = decrypt(sessionId || '');
+
+    if (decrypted && decrypted === dto.phoneNumber)
+      throw new ConflictException(
+        'Phone number already in use, please verify your account.',
+      );
+
     if (dto.password !== dto.confirm_password)
       throw new UnprocessableEntityException('Passwords do not match.');
 
@@ -65,7 +71,7 @@ export class AuthService {
         'Error sending verification code, try again.',
       );
 
-    const sessionId = encrypt(dto.phoneNumber);
+    const session = encrypt(dto.phoneNumber);
 
     await this.cache.set(
       SIGN_UP_SESSION(dto.phoneNumber),
@@ -73,12 +79,12 @@ export class AuthService {
       TIME_IN.minutes[10],
     );
 
-    return sessionId;
+    return session;
   }
 
   async resendSignUpVerificationCode(sessionId: string) {
     const signUpSession = await this.cache.get<CreateUserDto>(
-      SIGN_UP_SESSION(decrypt(sessionId)),
+      SIGN_UP_SESSION(decrypt(sessionId || '')),
     );
 
     if (!signUpSession)
@@ -107,10 +113,10 @@ export class AuthService {
   async verifyAccount(
     sessionId: string,
     dto: CodeDto,
-    IdeviceInfo?: IDeviceInfo,
+    IdeviceInfo: IDeviceInfo,
   ) {
     const signUpSession = await this.cache.get<CreateUserDto>(
-      SIGN_UP_SESSION(decrypt(sessionId)),
+      SIGN_UP_SESSION(decrypt(sessionId || '')),
     );
 
     if (!signUpSession) {
@@ -130,13 +136,12 @@ export class AuthService {
       throw new ForbiddenException('Expired or incorrect code, try again.');
     }
 
-    return await this.createVerifiedUser(sessionId, signUpSession, IdeviceInfo);
+    return await this.createVerifiedUser(signUpSession, IdeviceInfo);
   }
 
   private async createVerifiedUser(
-    sessionId: string,
     signUpSession: CreateUserDto,
-    IdeviceInfo?: IDeviceInfo,
+    deviceInfo: IDeviceInfo,
   ) {
     const transaction = await this.userModel.sequelize.transaction();
 
@@ -154,17 +159,17 @@ export class AuthService {
         this.generateRefreshToken(user.id),
       ]);
 
-      await this.updateVerifiedUserSession(
+      await this.updateUserSession({
         transaction,
-        user.id,
+        userId: user.id,
         refresh_token,
-        IdeviceInfo,
-      );
+        deviceInfo,
+      });
 
       await transaction.commit();
 
       await Promise.all([
-        this.cache.delete(SIGN_UP_SESSION(sessionId)),
+        this.cache.delete(SIGN_UP_SESSION(signUpSession.phoneNumber)),
         this.cacheSessionUser(user),
       ]);
 
@@ -210,14 +215,33 @@ export class AuthService {
     );
   }
 
-  private async updateVerifiedUserSession(
-    transaction: Transaction,
-    userId: string,
-    refreshToken: string,
-    IdeviceInfo?: IDeviceInfo,
-  ): Promise<void> {
-    if (!IdeviceInfo?.device || !IdeviceInfo?.ip) {
-      throw new BadRequestException('Invalid device information');
+  private async updateUserSession({
+    deviceInfo,
+    refresh_token,
+    transaction,
+    userId,
+  }: {
+    transaction?: Transaction;
+    userId: string;
+    refresh_token: string;
+    deviceInfo?: IDeviceInfo;
+  }): Promise<void> {
+    if (!deviceInfo.device.trim().length) {
+      console.log('Invalid device information');
+
+      deviceInfo = {
+        ...deviceInfo,
+        device: 'Unknown device',
+      };
+    }
+
+    if (!deviceInfo.ip.trim().length) {
+      console.log('Invalid IP address');
+
+      deviceInfo = {
+        ...deviceInfo,
+        ip: 'Unknown IP address',
+      };
     }
 
     const existingSession = await this.sessionModel.findOne({
@@ -227,26 +251,26 @@ export class AuthService {
 
     const currentDevices = existingSession?.logged_in_devices || [];
 
-    const deviceAlreadyExists = currentDevices.includes(IdeviceInfo.device);
+    const deviceAlreadyExists = currentDevices.includes(deviceInfo.device);
 
     const updatedDevices = deviceAlreadyExists
       ? currentDevices
-      : [...currentDevices, IdeviceInfo.device];
+      : [...currentDevices, deviceInfo.device];
 
     await this.sessionModel.upsert(
       {
         userId,
-        refresh_token: encrypt(refreshToken),
+        refresh_token: encrypt(refresh_token),
         lastLoggedIn: new Date(),
-        deviceIpAddress: IdeviceInfo.ip,
-        deviceLastLoggedIn: IdeviceInfo.device,
+        deviceIpAddress: deviceInfo.ip,
+        deviceLastLoggedIn: deviceInfo.device,
         logged_in_devices: updatedDevices,
       },
       { transaction },
     );
   }
 
-  async login(dto: LoginUserDto, IdeviceInfo?: IDeviceInfo) {
+  async login(dto: LoginUserDto, deviceInfo: IDeviceInfo) {
     const user = await this.userModel.findOne({
       where: { phoneNumber: dto.phoneNumber },
     });
@@ -271,33 +295,8 @@ export class AuthService {
       this.generateRefreshToken(user.id),
     ]);
 
-    //  Update session
-    if (!IdeviceInfo?.device || !IdeviceInfo?.ip) {
-      throw new BadRequestException('Invalid device information');
-    }
-
-    const existingSession = await this.sessionModel.findOne({
-      where: { userId: user.id },
-    });
-
-    const currentDevices = existingSession?.logged_in_devices || [];
-
-    const deviceAlreadyExists = currentDevices.includes(IdeviceInfo.device);
-
-    const updatedDevices = deviceAlreadyExists
-      ? currentDevices
-      : [...currentDevices, IdeviceInfo.device];
-
     await Promise.all([
-      this.sessionModel.upsert({
-        userId: user.id,
-        refresh_token: encrypt(refresh_token),
-        lastLoggedIn: new Date(),
-        deviceIpAddress: IdeviceInfo.ip,
-        deviceLastLoggedIn: IdeviceInfo.device,
-        logged_in_devices: updatedDevices,
-      }),
-
+      this.updateUserSession({ userId: user.id, refresh_token, deviceInfo }),
       this.cacheSessionUser(user),
     ]);
 
@@ -328,31 +327,23 @@ export class AuthService {
       TIME_IN.minutes[10],
     );
 
-    const sessionId = encrypt(dto.phoneNumber);
+    const session = encrypt(dto.phoneNumber);
 
     return {
-      sessionId,
+      session,
       message: `A code has been sent to ${obscurePhoneNumber(dto.phoneNumber)}`,
     };
   };
 
-  resendForgotPasswordCode = async (sessionId: string) => {
-    const decoded = decrypt(sessionId) as string;
+  resendForgotPasswordCode = (sessionId: string) =>
+    this.forgotPassword({ phoneNumber: decrypt(sessionId || '') });
 
-    if (!decoded)
-      throw new UnauthorizedException('Session expired, try again.');
-
-    return this.forgotPassword({ phoneNumber: decoded });
-  };
-
-  async verifyForgotPasswordCode(dto: CodeDto, sessionId: string) {
-    const decoded = decrypt(sessionId) as string;
-
+  async verifyForgotPasswordCode(sessionId: string, dto: CodeDto) {
     const passwordSession = await this.cache.get<ForgotPasswordDto>(
-      PASSWORD_SESSION(decoded),
+      PASSWORD_SESSION(decrypt(sessionId || '')),
     );
 
-    if (!decoded || !passwordSession)
+    if (!passwordSession)
       throw new UnauthorizedException('Session expired, try again.');
 
     const verificationCheckInstance = await this.twilio.createVerificationCheck(
@@ -365,21 +356,19 @@ export class AuthService {
 
     await this.cache.set(
       PASSWORD_SESSION(passwordSession.phoneNumber),
-      dto,
+      passwordSession,
       TIME_IN.minutes[10],
     );
 
     return sessionId;
   }
 
-  async resetPassword(dto: NewPasswordDto, sessionId: string) {
-    const decoded = decrypt(sessionId) as string;
-
+  async resetPassword(sessionId: string, dto: NewPasswordDto) {
     const passwordSession = await this.cache.get<ForgotPasswordDto>(
-      PASSWORD_SESSION(decoded),
+      PASSWORD_SESSION(decrypt(sessionId || '')),
     );
 
-    if (!decoded || !passwordSession)
+    if (!passwordSession)
       throw new UnauthorizedException('Session expired, try again.');
 
     const user = await this.userModel.findOne({
@@ -394,136 +383,35 @@ export class AuthService {
     user.password = dto.new_password;
     await Promise.all([
       user.save(),
-      this.cache.delete(PASSWORD_SESSION(decoded)),
+      this.cache.delete(PASSWORD_SESSION(user.phoneNumber)),
     ]);
   }
 
-  // refreshToken = async (refresh_token: string) => {
-  //   const user = await this.userModel.findOne({ where: { refresh_token } });
+  refreshToken = async (refresh_token: string) => {
+    const activeSession = await this.sessionModel.findOne({
+      where: { refresh_token },
+    });
 
-  //   if (!user)
-  //     throw new UnauthorizedException('Session expired, please log in again.');
+    if (!activeSession)
+      throw new UnauthorizedException('Session expired, please log in again.');
 
-  //   const token = await this.jwtService.signAsync({
-  //     sub: user.id,
-  //   });
+    const access_token = await this.generateAccessToken(activeSession.userId);
 
-  //   return { user, token };
-  // };
+    return { access_token };
+  };
 
-  // async logout(refresh_token: string) {
-  //   // Is refresh_token in db?
-  //   const user = await this.userModel.findOne({ where: { refresh_token } });
-  //   if (!user) throw new UnauthorizedException();
+  async logout(refresh_token: string) {
+    const session = await this.sessionModel.findOne({
+      where: { refresh_token },
+    });
 
-  //   const transaction = await this.userModel.sequelize.transaction();
+    if (!session) throw new UnauthorizedException();
 
-  //   try {
-  //     user.refresh_token = '';
-  //     await user.save({ transaction });
-
-  //     await this.sessionModel.update(
-  //       { refresh_token: '' },
-  //       {
-  //         where: { userId: user.id },
-  //         transaction,
-  //       },
-  //     );
-  //   } catch (error) {
-  //     console.error({ error });
-  //     await transaction.rollback();
-  //   }
-  // }
-
-  // async _verifyAccount(dto: CodeDto, IdeviceInfo: IDeviceInfo) {
-  //   const signUpSession = await this.cache.get<CreateUserDto>(
-  //     SIGN_UP_SESSION(dto.sessionId),
-  //   );
-
-  //   if (!signUpSession)
-  //     throw new UnauthorizedException(
-  //       'Session expired, please register again!',
-  //     );
-
-  //   const verificationCheckInstance = await this.twilio.createVerificationCheck(
-  //     signUpSession.phoneNumber,
-  //     dto.code,
-  //   );
-
-  //   if (verificationCheckInstance.status !== 'approved')
-  //     throw new ForbiddenException('Expired or incorrect code, try again.');
-
-  //   let user: User;
-  //   let access_token: string;
-  //   let refresh_token: string;
-
-  //   const transaction = await this.userModel.sequelize.transaction();
-
-  //   try {
-  //     user = await this.userModel.create(
-  //       {
-  //         ...signUpSession,
-  //         verified_phone: true,
-  //       },
-  //       { transaction },
-  //     );
-
-  //     access_token = await this.jwtService.signAsync({
-  //       sub: user.id,
-  //       isCredentials: true,
-  //     });
-
-  //     refresh_token = await this.jwtService.signAsync(
-  //       {
-  //         sub: user.id,
-  //         isCredentials: true,
-  //       },
-  //       {
-  //         secret: this.configService.get(JWT_REFRESH_TOKEN_SECRET),
-  //         expiresIn: this.configService.get(JWT_REFRESH_TOKEN_EXP, '7d'),
-  //       },
-  //     );
-
-  //     const existingSession = await this.sessionModel.findOne({
-  //       where: { userId: user.id },
-  //       transaction,
-  //     });
-
-  //     const currentDevices = existingSession?.logged_in_devices || [];
-
-  //     const deviceAlreadyExists = currentDevices.includes(IdeviceInfo.device);
-
-  //     const updatedDevices = deviceAlreadyExists
-  //       ? currentDevices
-  //       : [...currentDevices, IdeviceInfo.device];
-
-  //     await this.sessionModel.upsert(
-  //       {
-  //         userId: user.id,
-  //         refresh_token,
-  //         lastLoggedIn: new Date(),
-  //         deviceIpAddress: IdeviceInfo.ip,
-  //         deviceLastLoggedIn: IdeviceInfo.device,
-  //         logged_in_devices: updatedDevices,
-  //       },
-  //       { transaction },
-  //     );
-
-  //     await transaction.commit();
-  //   } catch (error) {
-  //     console.error({ error });
-  //     await transaction.rollback();
-  //     throw error;
-  //   }
-
-  //   await this.cache.delete(SIGN_UP_SESSION(dto.sessionId));
-
-  //   await this.cache.set(
-  //     USER_SESSION(user.id),
-  //     user.toJSON(),
-  //     this.configService.get(JWT_REFRESH_TOKEN_EXP, TIME_IN.days[7]),
-  //   );
-
-  //   return { user, access_token, refresh_token };
-  // }
+    await this.sessionModel.update(
+      { refresh_token: '' },
+      {
+        where: { refresh_token },
+      },
+    );
+  }
 }
