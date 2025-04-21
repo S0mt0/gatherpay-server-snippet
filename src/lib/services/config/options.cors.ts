@@ -6,7 +6,10 @@ import { NODE_ENV, PORT } from '../../constants';
 const config = new ConfigService();
 
 /** Allowed production origins */
-const prodOrigin = [''];
+const prodOrigin = [
+  'https://gatherpay-9abaa.ondigitalocean.app',
+  'https://www.gatherpay-9abaa.ondigitalocean.app',
+];
 
 /** Allowed development origins */
 const devOrigin = [
