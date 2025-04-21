@@ -49,62 +49,10 @@ export const corsOptions: CorsOptions = {
   origin: (origin, callback) => {
     console.log('Incoming request origin:', origin);
 
-    if (isProduction) {
-      if (allowedOrigins.includes(origin!)) {
-        callback(null, true);
-      } else {
-        callback(new Error('NOT ALLOWED BY CORS'));
-      }
+    if (allowedOrigins.includes(origin!) || !origin) {
+      callback(null, true);
     } else {
-      if (allowedOrigins.includes(origin!) || !origin) {
-        callback(null, true);
-      } else {
-        callback(new Error('NOT ALLOWED BY CORS'));
-      }
+      callback(new Error('NOT ALLOWED BY CORS'));
     }
   },
-};
-
-export const createCorsOptions = (config: ConfigService): CorsOptions => {
-  const isProduction = config.get(NODE_ENV) === 'production';
-  const allowedOrigins = isProduction ? prodOrigin : devOrigin;
-
-  return {
-    origin: (origin, callback) => {
-      console.log('Incoming request origin:', origin);
-      if (isProduction) {
-        if (allowedOrigins.includes(origin!)) {
-          callback(null, true);
-        } else {
-          callback(new Error('NOT ALLOWED BY CORS'));
-        }
-      } else {
-        if (allowedOrigins.includes(origin!) || !origin) {
-          callback(null, true);
-        } else {
-          callback(new Error('NOT ALLOWED BY CORS'));
-        }
-      }
-    },
-    allowedHeaders: [
-      'Content-Type',
-      'Authorization',
-      'Origin',
-      'X-Requested-With',
-      'Accept',
-      'User-Agent',
-      'Cookie',
-    ],
-
-    credentials: true,
-    optionsSuccessStatus: 200,
-    exposedHeaders: [
-      'Content-Range',
-      'X-Content-Range',
-      'Set-Cookie',
-      'Authorization',
-    ],
-
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  };
 };
