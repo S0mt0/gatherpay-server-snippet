@@ -4,10 +4,7 @@ import { config } from 'dotenv-flow';
 
 import { validate } from './env.validation';
 
-config({
-  debug: process.env.NODE_ENV !== 'production',
-  default_node_env: 'development',
-});
+config({ default_node_env: 'development' });
 
 @Module({
   imports: [

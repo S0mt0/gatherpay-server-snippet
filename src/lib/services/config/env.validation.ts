@@ -4,8 +4,12 @@ import { IsString, validateSync } from 'class-validator';
 class EnvironmentVariables {
   @IsString()
   DATABASE_URL: string;
+  REDIS_CLOUD_URL: string;
+
   JWT_ACCESS_TOKEN_SECRET: string;
-  JWT_ACCESS_TOKEN_EXP: string;
+
+  JWT_REFRESH_TOKEN_SECRET: string;
+
   TWILIO_AUTH_TOKEN: string;
   TWILIO_ACCOUNT_SID: string;
   TWILIO_SERVICE_SID: string;
