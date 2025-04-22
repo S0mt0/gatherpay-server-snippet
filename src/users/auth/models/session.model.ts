@@ -17,7 +17,7 @@ export class Session extends Model<Session> {
     unique: true,
     defaultValue: DataType.UUIDV4,
   })
-  readonly id!: string;
+  id!: string;
 
   @Column({
     type: DataType.STRING,
@@ -56,10 +56,22 @@ export class Session extends Model<Session> {
   deviceIpAddress: string;
 
   @Column({
+    type: DataType.STRING,
+    allowNull: true,
+  })
+  twoFactorSecret: string;
+
+  @Column({
     type: DataType.BOOLEAN,
     defaultValue: false,
   })
   twoFactorEnabled: boolean;
+
+  @Column({
+    type: DataType.BOOLEAN,
+    defaultValue: false,
+  })
+  twoFactorLoggedIn: boolean;
 
   @ForeignKey(() => User)
   @Column({
@@ -75,8 +87,11 @@ export class Session extends Model<Session> {
   toJSON() {
     const session = super.toJSON();
 
+    delete session.twoFactorSecret;
     delete session.refresh_token;
-    delete session.user;
+    delete session.userId;
+    delete session.createdAt;
+    delete session.updatedAt;
 
     return session;
   }

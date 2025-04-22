@@ -3,16 +3,15 @@ import { SequelizeModule } from '@nestjs/sequelize';
 
 import { UsersService } from './users.service';
 import { UsersController } from './users.controller';
-import { AuthController } from './auth/auth.controller';
-import { AuthService } from './auth/auth.service';
 import { User, UserGroup } from './models';
-import { Session } from './auth/models/session.model';
 import { CloudinaryService, TwilioService } from 'src/lib/services';
+import { AuthController, AuthService } from './auth';
+import { Session } from './auth/models';
 
 @Module({
   imports: [SequelizeModule.forFeature([User, UserGroup, Session])],
   controllers: [AuthController, UsersController],
-  providers: [UsersService, AuthService, CloudinaryService, TwilioService],
+  providers: [AuthService, UsersService, CloudinaryService, TwilioService],
   exports: [SequelizeModule, CloudinaryService, TwilioService],
 })
 export class UsersModule {}

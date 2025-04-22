@@ -1,4 +1,3 @@
-import { Transaction } from 'sequelize';
 import { InjectModel } from '@nestjs/sequelize';
 import {
   BadGatewayException,
@@ -11,14 +10,18 @@ import {
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
+import * as speakeasy from 'speakeasy';
 
 import {
   JWT_REFRESH_TOKEN_EXP,
   JWT_REFRESH_TOKEN_SECRET,
   TIME_IN,
-  USER_SESSION,
+  USER,
   SIGN_UP_SESSION,
   PASSWORD_SESSION,
+  SESSION,
+  APP_NAME,
+  USER_2FA,
 } from 'src/lib/constants';
 import { CacheService } from 'src/lib/services';
 
@@ -28,11 +31,27 @@ import { CreateUserDto } from './dto';
 import { User } from '../models/user.model';
 import { TwilioService } from 'src/lib/services';
 import { decrypt, encrypt, obscurePhoneNumber } from 'src/lib/utils';
-import { Session } from './models/session.model';
+import { Session } from './models';
 import { IDeviceInfo } from 'src/lib/interface';
 
 @Injectable()
 export class AuthService {
+  /** Refresh token `ttl` (time to live) in milliseconds
+   * @constant
+   */
+  public REFRESH_TOKEN_TTL = TIME_IN.days[3];
+
+  /** Session Id's `ttl` (time to live) in milliseconds
+   * @description Mostly influenced by Twilio verify's code `ttl`
+   * @constant
+   */
+  public S_ID_TTL = TIME_IN.minutes[10];
+
+  /** Two factor authentication (2FA) session Id's `ttl` (time to live)
+   * @constant
+   */
+  public S_2FA_TTL = TIME_IN.minutes[15];
+
   constructor(
     private jwtService: JwtService,
     private configService: ConfigService,
@@ -40,7 +59,13 @@ export class AuthService {
     private twilio: TwilioService,
     @InjectModel(User) private userModel: typeof User,
     @InjectModel(Session) private sessionModel: typeof Session,
-  ) {}
+  ) {
+    const exp = this.configService.get<string>(JWT_REFRESH_TOKEN_EXP);
+
+    if (!isNaN(+exp)) this.REFRESH_TOKEN_TTL = +exp;
+
+    console.log('rf_ttl: ', this.REFRESH_TOKEN_TTL);
+  }
 
   async signUp(dto: CreateUserDto, sessionId: string) {
     // Check if there's an active signup session that hasn't completed verification.
@@ -77,11 +102,7 @@ export class AuthService {
 
     const session = encrypt(dto.phoneNumber);
 
-    await this.cache.set(
-      SIGN_UP_SESSION(dto.phoneNumber),
-      dto,
-      TIME_IN.minutes[10],
-    );
+    await this.cache.set(SIGN_UP_SESSION(dto.phoneNumber), dto, this.S_ID_TTL);
 
     return session;
   }
@@ -108,7 +129,7 @@ export class AuthService {
     await this.cache.set(
       SIGN_UP_SESSION(signUpSession.phoneNumber),
       signUpSession,
-      TIME_IN.minutes[10],
+      this.S_ID_TTL,
     );
 
     return sessionId;
@@ -163,34 +184,42 @@ export class AuthService {
 
       const encrypted_refresh_token = encrypt(refresh_token);
 
-      await this.updateUserSession({
-        userId: user.id,
-        refresh_token: encrypted_refresh_token,
-        deviceInfo,
-        transaction,
-      });
+      const session = await this.sessionModel.create(
+        {
+          userId: user.id,
+          refresh_token,
+          lastLoggedIn: new Date(),
+          deviceIpAddress: deviceInfo.ip,
+          deviceLastLoggedIn: deviceInfo.device,
+          logged_in_devices: [deviceInfo.device],
+        },
+        { transaction },
+      );
 
       await transaction.commit();
 
       await Promise.all([
         this.cache.delete(SIGN_UP_SESSION(signUpSession.phoneNumber)),
-        this.cacheSessionUser(user),
+        this.cacheSessionUser(user, session),
       ]);
 
-      return { user, access_token, refresh_token: encrypted_refresh_token };
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      return {
+        user,
+        session,
+        access_token,
+        refresh_token: encrypted_refresh_token,
+      };
     } catch (error) {
       await transaction.rollback();
       throw error;
     }
   }
 
-  private async cacheSessionUser(user: User) {
-    await this.cache.set(
-      USER_SESSION(user.id),
-      user.toJSON(),
-      this.configService.get(JWT_REFRESH_TOKEN_EXP, TIME_IN.days[7]),
-    );
+  private async cacheSessionUser(user: User, session: Session) {
+    await Promise.all([
+      this.cache.set(USER(user.id), user, this.REFRESH_TOKEN_TTL),
+      this.cache.set(SESSION(session.id), session, this.REFRESH_TOKEN_TTL),
+    ]);
   }
 
   private generateAccessToken(
@@ -214,7 +243,10 @@ export class AuthService {
       },
       {
         secret: this.configService.get(JWT_REFRESH_TOKEN_SECRET),
-        expiresIn: this.configService.get(JWT_REFRESH_TOKEN_EXP, '3d'),
+        expiresIn: this.configService.get(
+          JWT_REFRESH_TOKEN_EXP,
+          this.REFRESH_TOKEN_TTL.toString(),
+        ),
       },
     );
   }
@@ -228,79 +260,32 @@ export class AuthService {
     });
   }
 
-  private async updateUserSession({
-    deviceInfo,
-    refresh_token,
-    transaction,
-    userId,
-  }: {
-    userId: string;
-    refresh_token: string;
-    deviceInfo?: IDeviceInfo;
-    transaction?: Transaction;
-  }): Promise<void> {
-    if (!deviceInfo.device.trim().length) {
-      console.log('Invalid device information');
-
-      deviceInfo = {
-        ...deviceInfo,
-        device: 'Unknown device',
-      };
-    }
-
-    if (!deviceInfo.ip.trim().length) {
-      console.log('Invalid IP address');
-
-      deviceInfo = {
-        ...deviceInfo,
-        ip: 'Unknown IP address',
-      };
-    }
-
-    const existingSession = await this.sessionModel.findOne({
-      where: { userId },
-    });
-
-    const currentDevices = existingSession?.logged_in_devices || [];
-
-    const deviceAlreadyExists = currentDevices.includes(deviceInfo.device);
-
-    const updatedDevices = deviceAlreadyExists
-      ? currentDevices
-      : [...currentDevices, deviceInfo.device];
-
-    await this.sessionModel.upsert(
-      {
-        userId,
-        refresh_token,
-        lastLoggedIn: new Date(),
-        deviceIpAddress: deviceInfo.ip,
-        deviceLastLoggedIn: deviceInfo.device,
-        logged_in_devices: updatedDevices,
-      },
-      { transaction },
-    );
-  }
-
   async login(dto: LoginUserDto, deviceInfo: IDeviceInfo) {
     const user = await this.userModel.findOne({
       where: { phoneNumber: dto.phoneNumber },
     });
 
-    if (!user) {
-      console.error(`User not found for phone number: ${dto.phoneNumber}`);
+    if (!user || !(await user.verifyPassword(dto.password)))
       throw new UnauthorizedException('Invalid credentials');
-    }
-
-    const isCorrectPassword = await user.verifyPassword(dto.password);
-
-    if (!isCorrectPassword) {
-      console.error(`Invalid password for user: ${user.phoneNumber}`);
-      throw new UnauthorizedException('Invalid credentials');
-    }
 
     if (!user.verified_phone)
       throw new ForbiddenException('Please verify your account to continue');
+
+    const session = await this.sessionModel.findOne({
+      where: { userId: user.id },
+    });
+
+    // Check if 2FA is enabled for user
+    if (session.twoFactorEnabled && session.twoFactorSecret) {
+      await this.cache.set(USER_2FA(user.id), user, this.S_2FA_TTL);
+
+      const s_2fa = encrypt(user.id);
+
+      return {
+        require_2fa: true,
+        s_2fa,
+      };
+    }
 
     const [access_token, refresh_token] = await Promise.all([
       this.generateAccessToken(user.id),
@@ -309,15 +294,72 @@ export class AuthService {
 
     const encrypted_refresh_token = encrypt(refresh_token);
 
-    await this.updateUserSession({
-      userId: user.id,
+    const currentDevices = session.logged_in_devices || [];
+    const deviceAlreadyExists = currentDevices.includes(deviceInfo.device);
+    const updatedDevices = deviceAlreadyExists
+      ? currentDevices
+      : [...currentDevices, deviceInfo.device];
+
+    session.refresh_token = encrypted_refresh_token;
+    session.lastLoggedIn = new Date();
+    session.deviceIpAddress = deviceInfo.ip;
+    session.deviceLastLoggedIn = deviceInfo.device;
+    session.logged_in_devices = updatedDevices;
+
+    await session.save();
+    await this.cacheSessionUser(user, session);
+
+    return {
+      user,
+      session,
+      access_token,
       refresh_token: encrypted_refresh_token,
-      deviceInfo,
+    };
+  }
+
+  async verify2FALogin(s_2fa: string, dto: CodeDto, deviceInfo: IDeviceInfo) {
+    const user = await this.cache.get<User>(USER_2FA(decrypt(s_2fa)));
+
+    if (!user)
+      throw new UnauthorizedException('Session expired, please log in again.');
+
+    const session = await this.sessionModel.findOne({
+      where: { userId: user.id },
     });
 
-    await this.cacheSessionUser(user);
+    const isValidated = this.verify2FAToken(session.twoFactorSecret, dto.code);
 
-    return { user, access_token, refresh_token: encrypted_refresh_token };
+    if (!isValidated) throw new ForbiddenException('Invalid code');
+
+    const [access_token, refresh_token] = await Promise.all([
+      this.generateAccessToken(user.id),
+      this.generateRefreshToken(user.id),
+    ]);
+
+    const encrypted_refresh_token = encrypt(refresh_token);
+
+    const currentDevices = session.logged_in_devices || [];
+    const deviceAlreadyExists = currentDevices.includes(deviceInfo.device);
+    const updatedDevices = deviceAlreadyExists
+      ? currentDevices
+      : [...currentDevices, deviceInfo.device];
+
+    session.refresh_token = encrypted_refresh_token;
+    session.lastLoggedIn = new Date();
+    session.deviceIpAddress = deviceInfo.ip;
+    session.deviceLastLoggedIn = deviceInfo.device;
+    session.logged_in_devices = updatedDevices;
+    session.twoFactorLoggedIn = true;
+
+    await session.save();
+    await this.cacheSessionUser(user, session);
+
+    return {
+      user,
+      session,
+      access_token,
+      refresh_token: encrypted_refresh_token,
+    };
   }
 
   forgotPassword = async (dto: ForgotPasswordDto) => {
@@ -338,11 +380,7 @@ export class AuthService {
         'Error sending verification code, try again.',
       );
 
-    await this.cache.set(
-      PASSWORD_SESSION(dto.phoneNumber),
-      dto,
-      TIME_IN.minutes[10],
-    );
+    await this.cache.set(PASSWORD_SESSION(dto.phoneNumber), dto, this.S_ID_TTL);
 
     const session = encrypt(dto.phoneNumber);
 
@@ -374,7 +412,7 @@ export class AuthService {
     await this.cache.set(
       PASSWORD_SESSION(passwordSession.phoneNumber),
       passwordSession,
-      TIME_IN.minutes[10],
+      this.S_ID_TTL,
     );
 
     return sessionId;
@@ -447,10 +485,24 @@ export class AuthService {
     }
 
     await this.sessionModel.update(
-      { refresh_token: null },
+      { refresh_token: null, twoFactorLoggedIn: false },
       {
         where: { refresh_token },
       },
     );
+  }
+
+  generate2FASecret(length: number = 20) {
+    const secret = speakeasy.generateSecret({ length, issuer: APP_NAME });
+
+    return { secret: secret.base32, qrCode: secret.otpauth_url };
+  }
+
+  verify2FAToken(secret: string, token: string): boolean {
+    return speakeasy.totp.verify({
+      secret,
+      encoding: 'base32',
+      token,
+    });
   }
 }

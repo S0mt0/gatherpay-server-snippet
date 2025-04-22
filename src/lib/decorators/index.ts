@@ -8,10 +8,11 @@ import {
 } from '@nestjs/common';
 import { Request } from 'express';
 
-import { AuthenticationGuard } from '../guards/auth.guard';
+import { AuthenticationGuard } from '../guards';
+import { S_ID } from '../constants';
 
 export const ParseSessionCookie = createParamDecorator(
-  (key: string = 's_id', ctx: ExecutionContext): string => {
+  (key: string = S_ID, ctx: ExecutionContext): string => {
     const request = ctx.switchToHttp().getRequest<Request>();
     const cookie = request.cookies?.[key];
 
@@ -32,12 +33,21 @@ export const DeviceInfo = createParamDecorator(
   },
 );
 
-export const User = createParamDecorator(
+export const CurrentUser = createParamDecorator(
   (data: string, ctx: ExecutionContext) => {
     const request = ctx.switchToHttp().getRequest<Request>();
     const user = request['user'];
 
     return data ? user?.[data] : user;
+  },
+);
+
+export const AuthSession = createParamDecorator(
+  (data: string, ctx: ExecutionContext) => {
+    const request = ctx.switchToHttp().getRequest<Request>();
+    const session = request['authSession'];
+
+    return data ? session?.[data] : session;
   },
 );
 

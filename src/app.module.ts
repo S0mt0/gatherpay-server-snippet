@@ -31,7 +31,7 @@ import { AuthController } from './users/auth/auth.controller';
     ThrottlerModule.forRoot([
       {
         ttl: TIME_IN.minutes[1],
-        limit: 20,
+        limit: 100,
       },
     ]),
 

@@ -21,17 +21,15 @@ import {
 } from './dto';
 import { CreateUserDto } from './dto';
 
-import { TIME_IN } from 'src/lib/constants';
+import { REFRESH_TOKEN, S_2FA, S_ID, TIME_IN } from 'src/lib/constants';
 import { DeviceInfo, Message, ParseSessionCookie } from 'src/lib/decorators';
 import { getExampleResponseObject } from 'src/lib/utils';
 import { IDeviceInfo } from 'src/lib/interface';
 import { AuthService } from './auth.service';
 
-const REFRESH_TOKEN = 'refresh_token';
-const S_ID = 's_id';
-
 @Message()
 @ApiResponse({ example: getExampleResponseObject({}) })
+@Throttle({ default: { limit: 4, ttl: TIME_IN.minutes[1] } })
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
@@ -43,13 +41,12 @@ export class AuthController {
    *
    * @throws {409} `Conflict` - When there's already an active signup session with the same credentials or user already exists
    * @throws {422} `Unprocessable Entity` - When payload validation fails
-   * @throws {429} `Too Many Requests` - Limited to 5 requests per minute
+   * @throws {429} `Too Many Requests` - Limited to 4 requests per minute
    * @throws {500} `Internal Server Error`
    * @throws {502} `BadGateway` Error sending verification code via `twilio verify` service.
    */
 
   @HttpCode(HttpStatus.OK)
-  @Throttle({ default: { limit: 5, ttl: TIME_IN.minutes[1] } })
   @Message('A verification code has been sent to your phone number')
   @Post('sign-up')
   async signUp(
@@ -66,7 +63,7 @@ export class AuthController {
       secure: true,
       httpOnly: true,
       sameSite: 'none',
-      maxAge: TIME_IN.minutes[10],
+      maxAge: this.authService.S_ID_TTL,
     });
   }
 
@@ -79,6 +76,7 @@ export class AuthController {
    * @throws {401} `Unauthorized` - Registration session expired.
    * @throws {403} `Forbidden` - Invalid or expired `verification code`
    * @throws {422} `Unprocessable Entity` - When payload validation fails
+   * @throws {429} `Too Many Requests` - Limited to 4 requests per minute
    * @throws {500} `Internal Server Error`
    * @throws {502} `BadGateway` Error verifying code via `twilio verify` service.
    */
@@ -108,7 +106,7 @@ export class AuthController {
       httpOnly: true,
       secure: true,
       sameSite: 'none',
-      maxAge: TIME_IN.days[3],
+      maxAge: this.authService.REFRESH_TOKEN_TTL,
     });
 
     return data;
@@ -122,7 +120,6 @@ export class AuthController {
    * @throws {500} `Internal Server Error`
    * @throws {502} `BadGateway` Error sending code via `Twilio verify` service
    */
-  @Throttle({ default: { limit: 4, ttl: TIME_IN.minutes[1] } })
   @Message('Code sent!')
   @Get('verify/resend')
   async resendSignUpVerificationCode(
@@ -136,7 +133,7 @@ export class AuthController {
       httpOnly: true,
       secure: true,
       sameSite: 'none',
-      maxAge: TIME_IN.minutes[10],
+      maxAge: this.authService.S_ID_TTL,
     });
   }
 
@@ -148,25 +145,78 @@ export class AuthController {
    * @throws {401} `Unauthorized` - Invalid credentials
    * @throws {403} `Forbidden` - Unverified account
    * @throws {422} `Unprocessable Entity` - When payload validation fails
-   * @throws {429} `Too Many Requests` - Limited to 10 requests per minute
+   * @throws {429} `Too Many Requests` - Limited to 4 requests per minute
    * @throws {500} `Internal Server Error`
    */
   @ApiResponse({
     example: getExampleResponseObject({
-      data: { user: {}, access_token: 'eg.Example.XXXXXXX.Token' },
+      data: { user: {}, session: {}, access_token: 'eg.Example.XXXXXXX.Token' },
     }),
   })
-  @Message('Welcome back!🎊')
   @HttpCode(HttpStatus.OK)
-  @Throttle({ default: { limit: 10, ttl: TIME_IN.minutes[1] } })
   @Post('sign-in')
   async login(
     @DeviceInfo() deviceInfo: IDeviceInfo,
     @Res({ passthrough: true }) res: Response,
     @Body() loginUserDto: LoginUserDto,
   ) {
-    const { refresh_token, ...data } = await this.authService.login(
+    const loginResponse = await this.authService.login(
       loginUserDto,
+      deviceInfo,
+    );
+
+    if (loginResponse?.require_2fa && loginResponse?.s_2fa) {
+      res.cookie(S_2FA, loginResponse.s_2fa, {
+        httpOnly: true,
+        secure: true,
+        sameSite: 'none',
+        maxAge: TIME_IN.minutes[3],
+      });
+
+      return { require_2fa: true };
+    } else {
+      const { refresh_token, ...data } = loginResponse;
+
+      res.cookie(REFRESH_TOKEN, refresh_token, {
+        httpOnly: true,
+        secure: true,
+        sameSite: 'none',
+        maxAge: this.authService.REFRESH_TOKEN_TTL,
+      });
+
+      return data;
+    }
+  }
+
+  /**
+   * Verify `2FA Login`
+   *
+   * @remarks Provide code generated from any authentication app that has been linked with your account
+   *
+   * @throws {401} `Unauthorized` - No or expired sign-in session
+   * @throws {403} `Forbidden` - Invalid code
+   * @throws {422} `Unprocessable Entity` - When payload validation fails
+   * @throws {429} `Too Many Requests` - Limited to 10 requests per minute
+   * @throws {500} `Internal Server Error`
+   */
+  @ApiResponse({
+    example: getExampleResponseObject({
+      data: { user: {}, session: {}, access_token: 'eg.Example.XXXXXXX.Token' },
+    }),
+  })
+  @Message('Welcome back!🎊')
+  @HttpCode(HttpStatus.OK)
+  @Throttle({ default: { limit: 10, ttl: TIME_IN.minutes[1] } })
+  @Post('sign-in/2fa/verify')
+  async verify2FALogin(
+    @ParseSessionCookie(S_2FA) s_2fa: string,
+    @DeviceInfo() deviceInfo: IDeviceInfo,
+    @Res({ passthrough: true }) res: Response,
+    @Body() codeDto: CodeDto,
+  ) {
+    const { refresh_token, ...data } = await this.authService.verify2FALogin(
+      s_2fa,
+      codeDto,
       deviceInfo,
     );
 
@@ -174,7 +224,7 @@ export class AuthController {
       httpOnly: true,
       secure: true,
       sameSite: 'none',
-      maxAge: TIME_IN.days[3],
+      maxAge: this.authService.REFRESH_TOKEN_TTL,
     });
 
     return data;
@@ -189,7 +239,6 @@ export class AuthController {
    * @throws {500} `Internal Server Error`
    * @throws {502} `Bad Gateway Error` Error sending code via Twilio
    */
-  @Throttle({ default: { limit: 4, ttl: TIME_IN.minutes[1] } })
   @HttpCode(HttpStatus.OK)
   @Post('password/forget')
   async forgotPassword(
@@ -203,7 +252,7 @@ export class AuthController {
       httpOnly: true,
       secure: true,
       sameSite: 'none',
-      maxAge: TIME_IN.minutes[10],
+      maxAge: this.authService.S_ID_TTL,
     });
 
     return message;
@@ -215,6 +264,7 @@ export class AuthController {
    * @throws {401} `Unauthorized` - Session expired
    * @throws {403} `Forbidden` - Expired or incorrect verification code
    * @throws {422} `Unprocessable Entity` - When payload validation fails
+   * @throws {429} `Too Many Requests` - Limited to 4 requests per minute
    * @throws {500} `Internal Server Error`
    * @throws {502} `BadGateway Error` Error sending code via Twilio
    */
@@ -235,7 +285,7 @@ export class AuthController {
       httpOnly: true,
       secure: true,
       sameSite: 'none',
-      maxAge: TIME_IN.minutes[10],
+      maxAge: this.authService.S_ID_TTL,
     });
   }
 
@@ -244,6 +294,7 @@ export class AuthController {
    *
    * @throws {401} `Unauthorized` - Session expired
    * @throws {422} `Unprocessable Entity` - Payload validation failed
+   * @throws {429} `Too Many Requests` - Limited to 4 requests per minute
    * @throws {500} `Internal Server Error`
    */
   @Message('Voila! Your password has been changed🥳')
@@ -264,7 +315,6 @@ export class AuthController {
    * @throws {500} `Internal Server Error`
    * @throws {502} `Bad Gateway Error` Error sending code via Twilio
    */
-  @Throttle({ default: { limit: 4, ttl: TIME_IN.minutes[1] } })
   @Get('password/resend-code')
   async resendForgotPasswordCode(
     @Res({ passthrough: true }) res: Response,
@@ -277,7 +327,7 @@ export class AuthController {
       httpOnly: true,
       secure: true,
       sameSite: 'none',
-      maxAge: TIME_IN.minutes[10],
+      maxAge: this.authService.S_ID_TTL,
     });
 
     return message;
@@ -287,18 +337,14 @@ export class AuthController {
    * Logout
    *
    * @throws {401} `Unauthorized` - No valid session or user available to logout
+   * @throws {429} `Too Many Requests` - Limited to 4 requests per minute
    * @throws {500} `Internal Server Error`
    */
-  @ApiResponse({
-    example: getExampleResponseObject({
-      statusCode: HttpStatus.NO_CONTENT,
-    }),
-  })
   @HttpCode(HttpStatus.NO_CONTENT)
   @Get('sign-out')
   logout(
     @Res({ passthrough: true }) res: Response,
-    @ParseSessionCookie(REFRESH_TOKEN) refresh_token: string,
+    @ParseSessionCookie() refresh_token: string,
   ) {
     res.clearCookie(REFRESH_TOKEN);
     res.status(HttpStatus.NO_CONTENT);
@@ -309,6 +355,7 @@ export class AuthController {
    * Refresh access token
    *
    * @throws {401} `Unauthorized` - No valid session or user available to be refreshed
+   * @throws {429} `Too Many Requests` - Limited to 4 requests per minute
    * @throws {500} `Internal Server Error`
    */
   @ApiResponse({

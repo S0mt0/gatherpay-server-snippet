@@ -66,13 +66,12 @@ export function generateMinutes(): TimeInMilliseconds<Minutes> {
 }
 
 export function extractBearerToken(req: Request) {
-  const authorization =
-    req.headers['authorization'] || (req.headers['Authorization'] as string);
+  const authorization = req.headers['authorization'];
 
   if (!authorization || !authorization.startsWith('Bearer '))
-    throw new UnauthorizedException('Missing bearer token');
+    throw new UnauthorizedException('Missing valid bearer token');
 
-  return authorization.split(' ')[1] as string;
+  return authorization.split(' ')[1];
 }
 
 export const obscurePhoneNumber = (phoneNumber: string) => {
