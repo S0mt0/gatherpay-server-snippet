@@ -35,7 +35,10 @@ export class AuthenticationGuard implements CanActivate {
 
     const refresh_token = request.cookies?.[REFRESH_TOKEN];
 
-    if (!refresh_token) return false;
+    if (!refresh_token)
+      throw new UnauthorizedException(
+        'Hey champ! Your session has expired, please log in again.',
+      );
 
     let token: string;
     try {
@@ -54,22 +57,30 @@ export class AuthenticationGuard implements CanActivate {
       }>(token);
     } catch (error) {
       if (error.name === 'TokenExpiredError') {
-        throw new UnauthorizedException('Token expired, please log in again.');
+        throw new UnauthorizedException(
+          'Hey champ! Your session has expired, please log in again.',
+        );
       }
 
       throw new UnauthorizedException('Invalid token.');
     }
 
     if (!decoded || !decoded.sub)
-      throw new UnauthorizedException('Session expired, please log in again.');
+      throw new UnauthorizedException(
+        'Hey champ! Your session has expired, please log in again.',
+      );
 
-    const user = await this.userModel.findOne({
-      where: { id: decoded.sub },
-    });
+    const user =
+      request['user'] ||
+      (await this.userModel.findOne({
+        where: { id: decoded.sub },
+      }));
 
-    const session = await this.sessionModel.findOne({
-      where: { userId: decoded.sub },
-    });
+    const session =
+      (request['authSession'] as Session) ||
+      (await this.sessionModel.findOne({
+        where: { userId: decoded.sub },
+      }));
 
     if (!user || !session) throw new UnauthorizedException();
 

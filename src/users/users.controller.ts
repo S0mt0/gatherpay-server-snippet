@@ -25,8 +25,13 @@ export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
   @Get('me')
-  getCurrentUser(@CurrentUser() user: User, @AuthSession() session: Session) {
-    return { user, session };
+  getCurrentUser(@CurrentUser() user: User) {
+    return { user };
+  }
+
+  @Get('me/session')
+  getSession(@AuthSession() session: Session) {
+    return { session };
   }
 
   @Message('Scan the qr code or enter secret manually')

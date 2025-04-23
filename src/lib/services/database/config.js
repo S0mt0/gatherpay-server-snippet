@@ -21,6 +21,7 @@ module.exports = {
   production: {
     url: process.env.DATABASE_URL,
     dialect: 'postgres',
+
     dialectOptions: {
       bigNumberStrings: true,
       ssl: {
@@ -28,6 +29,7 @@ module.exports = {
         rejectUnauthorized: false,
       },
     },
+
     pool: {
       max: 10,
       min: 1,

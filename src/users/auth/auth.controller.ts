@@ -90,7 +90,7 @@ export class AuthController {
   @ApiResponse({
     example: getExampleResponseObject({
       statusCode: HttpStatus.CREATED,
-      data: { user: {}, session: {}, access_token: 'eg.Example.XXXXXXX.Token' },
+      data: { user: {}, access_token: 'eg.Example.XXXXXXX.Token' },
     }),
   })
   @Message('Verification completed🎊')
@@ -157,7 +157,7 @@ export class AuthController {
    */
   @ApiResponse({
     example: getExampleResponseObject({
-      data: { user: {}, session: {}, access_token: 'eg.Example.XXXXXXX.Token' },
+      data: { user: {}, access_token: 'eg.Example.XXXXXXX.Token' },
     }),
   })
   @Message('Welcome back!🎊')
@@ -209,7 +209,7 @@ export class AuthController {
    */
   @ApiResponse({
     example: getExampleResponseObject({
-      data: { user: {}, session: {}, access_token: 'eg.Example.XXXXXXX.Token' },
+      data: { user: {}, access_token: 'eg.Example.XXXXXXX.Token' },
     }),
   })
   @Message('Welcome back!🎊')

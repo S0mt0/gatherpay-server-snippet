@@ -170,7 +170,7 @@ export class AuthService {
 
       const encrypted_refresh_token = encrypt(refresh_token);
 
-      const session = await this.sessionModel.create(
+      await this.sessionModel.create(
         {
           userId: user.id,
           refresh_token,
@@ -183,15 +183,10 @@ export class AuthService {
       );
 
       await transaction.commit();
-
-      await Promise.all([
-        this.cache.delete(SIGN_UP_SESSION(signUpSession.phoneNumber)),
-        this.cacheSessionUser(user, session),
-      ]);
+      await this.cache.delete(SIGN_UP_SESSION(signUpSession.phoneNumber));
 
       return {
         user,
-        session,
         access_token,
         refresh_token: encrypted_refresh_token,
       };
@@ -295,11 +290,9 @@ export class AuthService {
     session.logged_in_devices = updatedDevices;
 
     await session.save();
-    await this.cacheSessionUser(user, session);
 
     return {
       user,
-      session,
       access_token,
       refresh_token: encrypted_refresh_token,
     };
@@ -348,14 +341,10 @@ export class AuthService {
     session.twoFactorLoggedIn = true;
     await session.save();
 
-    await Promise.all([
-      this.cache.delete(USER_2FA(decrypted)),
-      this.cacheSessionUser(user, session),
-    ]);
+    await this.cache.delete(USER_2FA(decrypted));
 
     return {
       user,
-      session,
       access_token,
       refresh_token: encrypted_refresh_token,
     };
@@ -475,18 +464,7 @@ export class AuthService {
       where: { refresh_token },
     });
 
-    if (!activeSession) throw new UnauthorizedException();
-
-    const decoded = await this.verifyRefreshToken(decrypt(refresh_token));
-
-    const user = await this.userModel.findOne({
-      where: { id: decoded.sub },
-    });
-
-    if (!user) {
-      await activeSession.destroy();
-      throw new UnauthorizedException();
-    }
+    if (!activeSession) return;
 
     activeSession.refresh_token = null;
     activeSession.twoFactorLoggedIn = false;
