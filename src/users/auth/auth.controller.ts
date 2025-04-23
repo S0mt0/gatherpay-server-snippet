@@ -11,7 +11,7 @@ import {
 } from '@nestjs/common';
 import { Request, Response } from 'express';
 import { Throttle } from '@nestjs/throttler';
-import { ApiResponse } from '@nestjs/swagger';
+import { ApiNoContentResponse, ApiResponse } from '@nestjs/swagger';
 
 import {
   LoginUserDto,
@@ -21,7 +21,14 @@ import {
 } from './dto';
 import { CreateUserDto } from './dto';
 
-import { REFRESH_TOKEN, S_2FA, S_ID, TIME_IN } from 'src/lib/constants';
+import {
+  REFRESH_TOKEN,
+  S_2FA,
+  S_2FA_TTL,
+  S_ID,
+  S_ID_TTL,
+  TIME_IN,
+} from 'src/lib/constants';
 import { DeviceInfo, Message, ParseSessionCookie } from 'src/lib/decorators';
 import { getExampleResponseObject } from 'src/lib/utils';
 import { IDeviceInfo } from 'src/lib/interface';
@@ -63,7 +70,7 @@ export class AuthController {
       secure: true,
       httpOnly: true,
       sameSite: 'none',
-      maxAge: this.authService.S_ID_TTL,
+      maxAge: S_ID_TTL,
     });
   }
 
@@ -83,7 +90,7 @@ export class AuthController {
   @ApiResponse({
     example: getExampleResponseObject({
       statusCode: HttpStatus.CREATED,
-      data: { user: {}, access_token: 'eg.Example.XXXXXXX.Token' },
+      data: { user: {}, session: {}, access_token: 'eg.Example.XXXXXXX.Token' },
     }),
   })
   @Message('Verification completed🎊')
@@ -133,7 +140,7 @@ export class AuthController {
       httpOnly: true,
       secure: true,
       sameSite: 'none',
-      maxAge: this.authService.S_ID_TTL,
+      maxAge: S_ID_TTL,
     });
   }
 
@@ -153,6 +160,7 @@ export class AuthController {
       data: { user: {}, session: {}, access_token: 'eg.Example.XXXXXXX.Token' },
     }),
   })
+  @Message('Welcome back!🎊')
   @HttpCode(HttpStatus.OK)
   @Post('sign-in')
   async login(
@@ -165,15 +173,15 @@ export class AuthController {
       deviceInfo,
     );
 
-    if (loginResponse?.require_2fa && loginResponse?.s_2fa) {
+    if (loginResponse?.message && loginResponse?.s_2fa) {
       res.cookie(S_2FA, loginResponse.s_2fa, {
         httpOnly: true,
         secure: true,
         sameSite: 'none',
-        maxAge: TIME_IN.minutes[3],
+        maxAge: S_2FA_TTL,
       });
 
-      return { require_2fa: true };
+      return loginResponse.message;
     } else {
       const { refresh_token, ...data } = loginResponse;
 
@@ -252,7 +260,7 @@ export class AuthController {
       httpOnly: true,
       secure: true,
       sameSite: 'none',
-      maxAge: this.authService.S_ID_TTL,
+      maxAge: S_ID_TTL,
     });
 
     return message;
@@ -285,7 +293,7 @@ export class AuthController {
       httpOnly: true,
       secure: true,
       sameSite: 'none',
-      maxAge: this.authService.S_ID_TTL,
+      maxAge: S_ID_TTL,
     });
   }
 
@@ -327,7 +335,7 @@ export class AuthController {
       httpOnly: true,
       secure: true,
       sameSite: 'none',
-      maxAge: this.authService.S_ID_TTL,
+      maxAge: S_ID_TTL,
     });
 
     return message;
@@ -340,14 +348,14 @@ export class AuthController {
    * @throws {429} `Too Many Requests` - Limited to 4 requests per minute
    * @throws {500} `Internal Server Error`
    */
+  @ApiNoContentResponse()
   @HttpCode(HttpStatus.NO_CONTENT)
   @Get('sign-out')
   logout(
     @Res({ passthrough: true }) res: Response,
-    @ParseSessionCookie() refresh_token: string,
+    @ParseSessionCookie(REFRESH_TOKEN) refresh_token: string,
   ) {
     res.clearCookie(REFRESH_TOKEN);
-    res.status(HttpStatus.NO_CONTENT);
     return this.authService.logout(refresh_token);
   }
 

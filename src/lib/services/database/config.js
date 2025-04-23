@@ -1,7 +1,7 @@
 // Note To Devs: To use this migrations configuration, spin up the database service using docker with the same exact setup provided on the docker-compose.yml file. Hint: you only have to ensure that the docker engine is running, then use the scripts provided in the package.json file to run your containers.
 module.exports = {
   development: {
-    url: 'postgres://sewkito:123@127.0.0.1:5434/gatherpay',
+    url: process.env.DATABASE_URL,
     dialect: 'postgres',
     dialectOptions: {
       bigNumberStrings: true,

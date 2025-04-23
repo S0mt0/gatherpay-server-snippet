@@ -2,6 +2,16 @@ import { generateDays, generateHours, generateMinutes } from '../utils';
 
 export const CACHE_INSTANCE = 'CACHE_INSTANCE';
 
+/** Time in `minute`, ` hour` and `day` expressed in `milliseconds` */
+export const TIME_IN = {
+  /** Time in `minutes` expressed in `milliseconds` */
+  minutes: generateMinutes(),
+  /** Time in `hours` expressed in `milliseconds` */
+  hours: generateHours(),
+  /** Time in `days` expressed in `milliseconds` */
+  days: generateDays(),
+};
+
 /** @constant refresh_token */
 export const REFRESH_TOKEN = 'refresh_token';
 
@@ -12,22 +22,23 @@ export const REFRESH_TOKEN = 'refresh_token';
  */
 export const S_2FA = 's_2fa';
 
+/** Session Id's `ttl` (time to live) in milliseconds
+ * @description Mostly influenced by Twilio verify's code `ttl`
+ * @constant
+ */
+export const S_ID_TTL = TIME_IN.minutes[10];
+
+/** Two factor authentication (2FA) session Id's `ttl` (time to live in milliseconds)
+ * @constant
+ */
+export const S_2FA_TTL = TIME_IN.minutes[15];
+
 /**
  * Session Id
  * @description Session in the context of the app is mostly used to track short lived activities like `sign up`, `forget password` etc
  * @constant s_id
  */
 export const S_ID = 's_id';
-
-/** Time in `minute`, ` hour` and `day` expressed in `milliseconds` */
-export const TIME_IN = {
-  /** Time in `minutes` expressed in `milliseconds` */
-  minutes: generateMinutes(),
-  /** Time in `hours` expressed in `milliseconds` */
-  hours: generateHours(),
-  /** Time in `days` expressed in `milliseconds` */
-  days: generateDays(),
-};
 
 export const APP_NAME = 'Gatherpay';
 

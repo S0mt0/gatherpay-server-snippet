@@ -7,21 +7,19 @@ import {
 import { Reflector } from '@nestjs/core';
 import { JwtService } from '@nestjs/jwt';
 import { Request } from 'express';
+import { InjectModel } from '@nestjs/sequelize';
 
 import { PUBLIC_KEY } from '../decorators';
 import { extractBearerToken } from '../utils';
-import { CacheService } from '../services/cache/cache.service';
-import { SESSION, USER } from '../constants';
-import { InjectModel } from '@nestjs/sequelize';
 import { Session } from 'src/users/auth/models';
 import { User } from 'src/users/models';
+import { REFRESH_TOKEN } from '../constants';
 
 @Injectable()
 export class AuthenticationGuard implements CanActivate {
   constructor(
     private reflector: Reflector,
     private jwtService: JwtService,
-    private cache: CacheService,
     @InjectModel(User) private userModel: typeof User,
     @InjectModel(Session) private sessionModel: typeof Session,
   ) {}
@@ -35,8 +33,11 @@ export class AuthenticationGuard implements CanActivate {
 
     const request = context.switchToHttp().getRequest<Request>();
 
-    let token: string;
+    const refresh_token = request.cookies?.[REFRESH_TOKEN];
 
+    if (!refresh_token) return false;
+
+    let token: string;
     try {
       token = extractBearerToken(request);
     } catch (error) {
@@ -49,6 +50,7 @@ export class AuthenticationGuard implements CanActivate {
       decoded = await this.jwtService.verifyAsync<{
         sub: string;
         isCredentials: boolean;
+        phoneNumber: string;
       }>(token);
     } catch (error) {
       if (error.name === 'TokenExpiredError') {
@@ -61,13 +63,13 @@ export class AuthenticationGuard implements CanActivate {
     if (!decoded || !decoded.sub)
       throw new UnauthorizedException('Session expired, please log in again.');
 
-    const user = ((await this.cache.get(USER(decoded.sub))) ||
-      (await this.userModel.findOne({ where: { id: decoded.sub } }))) as User;
+    const user = await this.userModel.findOne({
+      where: { id: decoded.sub },
+    });
 
-    const session = ((await this.cache.get(SESSION(decoded.sub))) ||
-      (await this.sessionModel.findOne({
-        where: { userId: decoded.sub },
-      }))) as Session;
+    const session = await this.sessionModel.findOne({
+      where: { userId: decoded.sub },
+    });
 
     if (!user || !session) throw new UnauthorizedException();
 

@@ -104,7 +104,7 @@ export const encrypt = (
 ) => crypto.AES.encrypt(JSON.stringify(data), secret).toString();
 
 export const decrypt = (
-  ciphertext: string,
+  ciphertext: string = '',
   secret: string = config.get(JWT_ACCESS_TOKEN_SECRET),
 ) => {
   const bytes = crypto.AES.decrypt(ciphertext, secret);

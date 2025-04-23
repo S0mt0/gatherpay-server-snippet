@@ -6,7 +6,7 @@ import { User } from './models/user.model';
 import { AuthService } from './auth';
 import { Session } from './auth/models';
 import { CacheService } from 'src/lib/services';
-import { SESSION, USER_2FA } from 'src/lib/constants';
+import { S_2FA_TTL, SESSION, USER_2FA } from 'src/lib/constants';
 import { decrypt, encrypt } from 'src/lib/utils';
 import { CodeDto } from './auth/dto';
 
@@ -18,17 +18,14 @@ export class UsersService {
     private readonly cacheService: CacheService,
   ) {}
 
-  async enable2FA(session: Session) {
-    const { qrCode, secret: temp_secret } =
-      this.authService.generate2FASecret();
-
-    await this.cacheService.set(
-      USER_2FA(session.userId),
-      temp_secret,
-      this.authService.S_2FA_TTL,
+  async enable2FA(user: User) {
+    const { qrCode, secret: temp_secret } = this.authService.generate2FASecret(
+      user.username,
     );
 
-    const s_2fa = encrypt(session.userId);
+    await this.cacheService.set(USER_2FA(user.id), temp_secret, S_2FA_TTL);
+
+    const s_2fa = encrypt(user.id);
 
     return {
       s_2fa,
@@ -65,6 +62,13 @@ export class UsersService {
     );
 
     return session;
+  }
+
+  async disable2FA(session: Session) {
+    session.twoFactorEnabled = false;
+    session.twoFactorLoggedIn = false;
+    session.twoFactorSecret = null;
+    await session.save();
   }
 
   findAll() {

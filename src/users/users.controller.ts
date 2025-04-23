@@ -13,8 +13,7 @@ import {
 } from 'src/lib/decorators';
 import { User } from './models';
 import { Session } from './auth/models';
-import { S_2FA, TIME_IN } from 'src/lib/constants';
-import { AuthService } from './auth';
+import { S_2FA, S_2FA_TTL, TIME_IN } from 'src/lib/constants';
 import { CodeDto } from './auth/dto';
 
 @Protect()
@@ -23,10 +22,7 @@ import { CodeDto } from './auth/dto';
 @Throttle({ default: { limit: 10, ttl: TIME_IN.minutes[1] } })
 @Controller('users')
 export class UsersController {
-  constructor(
-    private readonly usersService: UsersService,
-    private readonly authService: AuthService,
-  ) {}
+  constructor(private readonly usersService: UsersService) {}
 
   @Get('me')
   getCurrentUser(@CurrentUser() user: User, @AuthSession() session: Session) {
@@ -34,20 +30,19 @@ export class UsersController {
   }
 
   @Message('Scan the qr code or enter secret manually')
-  // @Message('Two-factor-authentication enabled💪')
   @Throttle({ default: { limit: 4, ttl: TIME_IN.minutes[1] } })
   @Get('me/2fa/enable')
   async enable2FA(
-    @AuthSession() session: Session,
+    @CurrentUser() user: User,
     @Res({ passthrough: true }) res: Response,
   ) {
-    const { s_2fa, ...data } = await this.usersService.enable2FA(session);
+    const { s_2fa, ...data } = await this.usersService.enable2FA(user);
 
     res.cookie(S_2FA, s_2fa, {
       httpOnly: true,
       secure: true,
       sameSite: 'none',
-      maxAge: this.authService.S_2FA_TTL,
+      maxAge: S_2FA_TTL,
     });
 
     return data;
@@ -70,6 +65,13 @@ export class UsersController {
 
     res.clearCookie(S_2FA);
     return updatedSession;
+  }
+
+  @Message('Two-factor-authentication disabled.')
+  @Throttle({ default: { limit: 4, ttl: TIME_IN.minutes[1] } })
+  @Get('me/2fa/disable')
+  disable2FA(@AuthSession() session: Session) {
+    return this.usersService.disable2FA(session);
   }
 
   @Get()
