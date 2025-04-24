@@ -27,7 +27,7 @@
     "pretest:e2e": "yarn db:test:restart",
     "test:e2e": "dotenv -e .env.test.local -- jest --watch --no-cache --config ./test/jest-e2e.json",
     "sq:init": "sequelize-cli init",
-    "sq:migrate:prod": "dotenv -e .env.production cross-env NODE_ENV=production DEBUG=sequelize:* sequelize-cli db:migrate --debug",
+    "sq:migrate:prod": "dotenv -e .env.production -- cross-env NODE_ENV=production DEBUG=sequelize:* sequelize-cli db:migrate --debug",
     "sq:migrate:dev": "DEBUG=sequelize:* sequelize-cli db:migrate --debug",
     "sq:migrate:undo": "sequelize-cli db:migrate:undo",
     "sq:migrate:undo:all": "sequelize-cli db:migrate:undo:all",

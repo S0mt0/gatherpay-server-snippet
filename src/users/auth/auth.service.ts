@@ -39,7 +39,7 @@ export class AuthService {
   /** Refresh token `ttl` (time to live) in milliseconds
    * @constant
    */
-  public REFRESH_TOKEN_TTL = TIME_IN.days[3];
+  public REFRESH_TOKEN_TTL = TIME_IN.days[7];
 
   constructor(
     private jwtService: JwtService,
