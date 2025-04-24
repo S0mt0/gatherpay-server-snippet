@@ -9,7 +9,9 @@ import {
 
 import { User } from '../../models/user.model';
 
-@Table({ tableName: 'sessions' })
+export const SESSIONS_TABLE = 'sessions';
+
+@Table({ tableName: SESSIONS_TABLE })
 export class Session extends Model<Session> {
   @Column({
     type: DataType.UUID,

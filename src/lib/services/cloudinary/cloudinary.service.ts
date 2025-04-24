@@ -1,6 +1,7 @@
 import {
   Global,
   Injectable,
+  OnModuleInit,
   UnprocessableEntityException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
@@ -16,14 +17,16 @@ import {
 
 @Global()
 @Injectable()
-export class CloudinaryService {
+export class CloudinaryService implements OnModuleInit {
   private u_preset: string;
   allowedFileTypes = ['image/jpg', 'image/png', 'image/jpeg'];
   maxFileSize = 5000000; // 5MB
 
   constructor(private configService: ConfigService) {
     this.u_preset = this.configService.get(CLOUDINARY_UPLOAD_PRESET);
+  }
 
+  onModuleInit() {
     cloudinary.config({
       cloud_name: this.configService.get(CLOUDINARY_CLOUD_NAME),
       api_key: this.configService.get(CLOUDINARY_API_KEY),

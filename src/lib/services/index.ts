@@ -4,3 +4,4 @@ export * from './config';
 export * from './database/database.module';
 export * from './mail/mail.service';
 export * from './twilio/twilio.service';
+export * from './firebase/firebase.service';

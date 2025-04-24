@@ -6,7 +6,7 @@ import { User } from './models/user.model';
 import { AuthService } from './auth';
 import { Session } from './auth/models';
 import { CacheService } from 'src/lib/services';
-import { S_2FA_TTL, SESSION, USER_2FA } from 'src/lib/constants';
+import { TFASID_TTL, SESSION, USER_2FA } from 'src/lib/constants';
 import { decrypt, encrypt } from 'src/lib/utils';
 import { CodeDto } from './auth/dto';
 
@@ -23,19 +23,19 @@ export class UsersService {
       user.username,
     );
 
-    await this.cacheService.set(USER_2FA(user.id), temp_secret, S_2FA_TTL);
+    await this.cacheService.set(USER_2FA(user.id), temp_secret, TFASID_TTL);
 
-    const s_2fa = encrypt(user.id);
+    const TFASID = encrypt(user.id);
 
     return {
-      s_2fa,
+      TFASID,
       qrCodeImageUrl: await QRCode.toDataURL(qrCode),
       temp_secret,
     };
   }
 
-  async verify2FA(s_2fa: string, dto: CodeDto, session: Session) {
-    const decrypted = decrypt(s_2fa);
+  async verify2FA(TFASID: string, dto: CodeDto, session: Session) {
+    const decrypted = decrypt(TFASID);
 
     const temp_secret = await this.cacheService.get<string>(
       USER_2FA(decrypted),

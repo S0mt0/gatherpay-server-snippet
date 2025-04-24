@@ -9,10 +9,10 @@ import {
 import { Request } from 'express';
 
 import { AuthenticationGuard } from '../guards';
-import { S_ID } from '../constants';
+import { SID } from '../constants';
 
 export const ParseSessionCookie = createParamDecorator(
-  (key: string = S_ID, ctx: ExecutionContext): string => {
+  (key: string = SID, ctx: ExecutionContext): string => {
     const request = ctx.switchToHttp().getRequest<Request>();
     const cookie = request.cookies?.[key];
 

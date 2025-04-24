@@ -18,15 +18,16 @@ import {
   NewPasswordDto,
   ForgotPasswordDto,
   CodeDto,
+  OauthDto,
 } from './dto';
 import { CreateUserDto } from './dto';
 
 import {
   REFRESH_TOKEN,
-  S_2FA,
-  S_2FA_TTL,
-  S_ID,
-  S_ID_TTL,
+  TFASID,
+  TFASID_TTL,
+  SID,
+  SID_TTL,
   TIME_IN,
 } from 'src/lib/constants';
 import { DeviceInfo, Message, ParseSessionCookie } from 'src/lib/decorators';
@@ -42,6 +43,39 @@ export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
   /**
+   * Authenticate via social providers (Google, Facebook, etc)
+   *
+   * @remarks Supported providers include `google.com`, `apple.com`, `facebook.com`
+   *
+   * @throws {403} `Forbidden` - User tries to continue with a different provider than they used to register
+   * @throws {409} `Conflict` - User already exists
+   * @throws {422} `Unprocessable Entity` Failed payload validation
+   * @throws {429} `Too Many Requests` - Limited to 10 requests per minute
+   */
+
+  @HttpCode(HttpStatus.OK)
+  @Throttle({ default: { limit: 10, ttl: TIME_IN.minutes[1] } })
+  @Post('oauth')
+  async handleSocialLogin(
+    @Body() oauthDto: OauthDto,
+    @Res({ passthrough: true }) res: Response,
+    @DeviceInfo() deviceInfo: IDeviceInfo,
+  ) {
+    const { refresh_token, ...data } = await this.authService.handleSocialLogin(
+      oauthDto,
+      deviceInfo,
+    );
+
+    res.cookie(REFRESH_TOKEN, refresh_token, {
+      httpOnly: true,
+      secure: true,
+      sameSite: 'none',
+      maxAge: this.authService.REFRESH_TOKEN_TTL,
+    });
+
+    return data;
+  }
+  /**
    * Sign-up / create new account
    *
    * @remarks This operation initiates registration/creation of a new user account. If phone number verification isn't completed, registraion fails and data will not be persisted to database. This means the same credentials can be used to sign up for an account.
@@ -49,7 +83,6 @@ export class AuthController {
    * @throws {409} `Conflict` - When there's already an active signup session with the same credentials or user already exists
    * @throws {422} `Unprocessable Entity` - When payload validation fails
    * @throws {429} `Too Many Requests` - Limited to 4 requests per minute
-   * @throws {500} `Internal Server Error`
    * @throws {502} `BadGateway` Error sending verification code via `twilio verify` service.
    */
 
@@ -63,14 +96,14 @@ export class AuthController {
   ) {
     const session = await this.authService.signUp(
       createUserDto,
-      req.cookies?.[S_ID],
+      req.cookies?.[SID],
     );
 
-    res.cookie(S_ID, session, {
+    res.cookie(SID, session, {
       secure: true,
       httpOnly: true,
       sameSite: 'none',
-      maxAge: S_ID_TTL,
+      maxAge: SID_TTL,
     });
   }
 
@@ -84,7 +117,6 @@ export class AuthController {
    * @throws {403} `Forbidden` - Invalid or expired `verification code`
    * @throws {422} `Unprocessable Entity` - When payload validation fails
    * @throws {429} `Too Many Requests` - Limited to 4 requests per minute
-   * @throws {500} `Internal Server Error`
    * @throws {502} `BadGateway` Error verifying code via `twilio verify` service.
    */
   @ApiResponse({
@@ -107,7 +139,7 @@ export class AuthController {
       deviceInfo,
     );
 
-    res.clearCookie(S_ID);
+    res.clearCookie(SID);
 
     res.cookie(REFRESH_TOKEN, refresh_token, {
       httpOnly: true,
@@ -124,7 +156,6 @@ export class AuthController {
    *
    * @throws {401} `Unauthorized` - Registration session expired.
    * @throws {429} `Too Many Requests` - Limited to 4 requests per minute
-   * @throws {500} `Internal Server Error`
    * @throws {502} `BadGateway` Error sending code via `Twilio verify` service
    */
   @Message('Code sent!')
@@ -136,11 +167,11 @@ export class AuthController {
     const session =
       await this.authService.resendSignUpVerificationCode(sessionId);
 
-    res.cookie(S_ID, session, {
+    res.cookie(SID, session, {
       httpOnly: true,
       secure: true,
       sameSite: 'none',
-      maxAge: S_ID_TTL,
+      maxAge: SID_TTL,
     });
   }
 
@@ -153,7 +184,6 @@ export class AuthController {
    * @throws {403} `Forbidden` - Unverified account
    * @throws {422} `Unprocessable Entity` - When payload validation fails
    * @throws {429} `Too Many Requests` - Limited to 4 requests per minute
-   * @throws {500} `Internal Server Error`
    */
   @ApiResponse({
     example: getExampleResponseObject({
@@ -173,12 +203,12 @@ export class AuthController {
       deviceInfo,
     );
 
-    if (loginResponse?.message && loginResponse?.s_2fa) {
-      res.cookie(S_2FA, loginResponse.s_2fa, {
+    if (loginResponse?.message && loginResponse?.TFASID) {
+      res.cookie(TFASID, loginResponse.TFASID, {
         httpOnly: true,
         secure: true,
         sameSite: 'none',
-        maxAge: S_2FA_TTL,
+        maxAge: TFASID_TTL,
       });
 
       return loginResponse.message;
@@ -205,7 +235,6 @@ export class AuthController {
    * @throws {403} `Forbidden` - Invalid code
    * @throws {422} `Unprocessable Entity` - When payload validation fails
    * @throws {429} `Too Many Requests` - Limited to 10 requests per minute
-   * @throws {500} `Internal Server Error`
    */
   @ApiResponse({
     example: getExampleResponseObject({
@@ -217,13 +246,13 @@ export class AuthController {
   @Throttle({ default: { limit: 10, ttl: TIME_IN.minutes[1] } })
   @Post('sign-in/2fa/verify')
   async verify2FALogin(
-    @ParseSessionCookie(S_2FA) s_2fa: string,
+    @ParseSessionCookie(TFASID) TFASID: string,
     @DeviceInfo() deviceInfo: IDeviceInfo,
     @Res({ passthrough: true }) res: Response,
     @Body() codeDto: CodeDto,
   ) {
     const { refresh_token, ...data } = await this.authService.verify2FALogin(
-      s_2fa,
+      TFASID,
       codeDto,
       deviceInfo,
     );
@@ -244,7 +273,6 @@ export class AuthController {
    * @throws {404} `Notfound` - User with provided credential (phone number) was not found
    * @throws {422} `Unprocessable Entity` - Failed payload validation
    * @throws {429} `Too Many Requests` - Limited to 4 requests per minute
-   * @throws {500} `Internal Server Error`
    * @throws {502} `Bad Gateway Error` Error sending code via Twilio
    */
   @HttpCode(HttpStatus.OK)
@@ -256,11 +284,11 @@ export class AuthController {
     const { session, message } =
       await this.authService.forgotPassword(forgotPasswordDto);
 
-    res.cookie(S_ID, session, {
+    res.cookie(SID, session, {
       httpOnly: true,
       secure: true,
       sameSite: 'none',
-      maxAge: S_ID_TTL,
+      maxAge: SID_TTL,
     });
 
     return message;
@@ -273,7 +301,6 @@ export class AuthController {
    * @throws {403} `Forbidden` - Expired or incorrect verification code
    * @throws {422} `Unprocessable Entity` - When payload validation fails
    * @throws {429} `Too Many Requests` - Limited to 4 requests per minute
-   * @throws {500} `Internal Server Error`
    * @throws {502} `BadGateway Error` Error sending code via Twilio
    */
   @Message('You rock! Now, create a new password🎊')
@@ -289,11 +316,11 @@ export class AuthController {
       resetPasswordDto,
     );
 
-    res.cookie(S_ID, session, {
+    res.cookie(SID, session, {
       httpOnly: true,
       secure: true,
       sameSite: 'none',
-      maxAge: S_ID_TTL,
+      maxAge: SID_TTL,
     });
   }
 
@@ -303,7 +330,6 @@ export class AuthController {
    * @throws {401} `Unauthorized` - Session expired
    * @throws {422} `Unprocessable Entity` - Payload validation failed
    * @throws {429} `Too Many Requests` - Limited to 4 requests per minute
-   * @throws {500} `Internal Server Error`
    */
   @Message('Voila! Your password has been changed🥳')
   @HttpCode(HttpStatus.OK)
@@ -320,7 +346,6 @@ export class AuthController {
    *
    * @throws {404} `Notfound` - User with provided credential (phone number) was not found
    * @throws {429} `Too Many Requests` - Limited to 4 requests per minute
-   * @throws {500} `Internal Server Error`
    * @throws {502} `Bad Gateway Error` Error sending code via Twilio
    */
   @Get('password/resend-code')
@@ -331,11 +356,11 @@ export class AuthController {
     const { session, message } =
       await this.authService.resendForgotPasswordCode(sessionId);
 
-    res.cookie(S_ID, session, {
+    res.cookie(SID, session, {
       httpOnly: true,
       secure: true,
       sameSite: 'none',
-      maxAge: S_ID_TTL,
+      maxAge: SID_TTL,
     });
 
     return message;
@@ -346,7 +371,6 @@ export class AuthController {
    *
    * @throws {401} `Unauthorized` - No valid session or user available to logout
    * @throws {429} `Too Many Requests` - Limited to 4 requests per minute
-   * @throws {500} `Internal Server Error`
    */
   @ApiNoContentResponse()
   @HttpCode(HttpStatus.NO_CONTENT)
@@ -364,7 +388,6 @@ export class AuthController {
    *
    * @throws {401} `Unauthorized` - No valid session or user available to be refreshed
    * @throws {429} `Too Many Requests` - Limited to 4 requests per minute
-   * @throws {500} `Internal Server Error`
    */
   @ApiResponse({
     example: getExampleResponseObject({

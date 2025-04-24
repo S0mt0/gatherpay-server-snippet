@@ -13,7 +13,7 @@ import {
 } from 'src/lib/decorators';
 import { User } from './models';
 import { Session } from './auth/models';
-import { S_2FA, S_2FA_TTL, TIME_IN } from 'src/lib/constants';
+import { TFASID, TFASID_TTL, TIME_IN } from 'src/lib/constants';
 import { CodeDto } from './auth/dto';
 
 @Protect()
@@ -41,13 +41,13 @@ export class UsersController {
     @CurrentUser() user: User,
     @Res({ passthrough: true }) res: Response,
   ) {
-    const { s_2fa, ...data } = await this.usersService.enable2FA(user);
+    const { TFASID, ...data } = await this.usersService.enable2FA(user);
 
-    res.cookie(S_2FA, s_2fa, {
+    res.cookie(TFASID, TFASID, {
       httpOnly: true,
       secure: true,
       sameSite: 'none',
-      maxAge: S_2FA_TTL,
+      maxAge: TFASID_TTL,
     });
 
     return data;
@@ -57,18 +57,18 @@ export class UsersController {
   @Throttle({ default: { limit: 10, ttl: TIME_IN.minutes[1] } })
   @Post('me/2fa/verify')
   async verify2FA(
-    @ParseSessionCookie(S_2FA) s_2fa: string,
+    @ParseSessionCookie(TFASID) TFASID: string,
     @AuthSession() session: Session,
     @Res({ passthrough: true }) res: Response,
     @Body() codeDto: CodeDto,
   ) {
     const updatedSession = await this.usersService.verify2FA(
-      s_2fa,
+      TFASID,
       codeDto,
       session,
     );
 
-    res.clearCookie(S_2FA);
+    res.clearCookie(TFASID);
     return updatedSession;
   }
 

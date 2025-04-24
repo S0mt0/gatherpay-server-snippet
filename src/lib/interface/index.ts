@@ -98,3 +98,9 @@ export interface IDeviceInfo {
   device: string;
   userAgent: string;
 }
+
+export type AllowedProviders =
+  | 'credentials'
+  | 'google.com'
+  | 'facebook.com'
+  | 'apple.com';

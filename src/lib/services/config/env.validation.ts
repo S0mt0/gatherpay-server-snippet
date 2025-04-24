@@ -7,12 +7,15 @@ class EnvironmentVariables {
   REDIS_CLOUD_URL: string;
 
   JWT_ACCESS_TOKEN_SECRET: string;
-
   JWT_REFRESH_TOKEN_SECRET: string;
 
   TWILIO_AUTH_TOKEN: string;
   TWILIO_ACCOUNT_SID: string;
   TWILIO_SERVICE_SID: string;
+
+  FIREBASE_CLIENT_EMAIL: string;
+  FIREBASE_PRIVATE_KEY: string;
+  FIREBASE_PROJECT_ID: string;
 }
 
 export function validate(config: Record<string, unknown>) {

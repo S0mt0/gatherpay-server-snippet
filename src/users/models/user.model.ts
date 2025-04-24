@@ -7,7 +7,6 @@ import {
   ForeignKey,
   BelongsTo,
   BeforeSave,
-  BeforeUpdate,
   HasOne,
   BelongsToMany,
   BeforeValidate,
@@ -21,8 +20,11 @@ import { Session } from '../auth/models/session.model';
 import { AccountDetail } from 'src/accounts/models/account.model';
 import { Group } from 'src/groups/models/group.model';
 import { UserGroup } from './user-group.model';
+import { AllowedProviders } from 'src/lib/interface';
 
-@Table({ tableName: 'users', timestamps: true, createdAt: 'joinedAt' })
+export const USERS_TABLE = 'users';
+
+@Table({ tableName: USERS_TABLE, timestamps: true, createdAt: 'joinedAt' })
 export class User extends Model<User> {
   @Column({
     type: DataType.UUID,
@@ -34,15 +36,21 @@ export class User extends Model<User> {
 
   @Column({
     type: DataType.STRING,
-    allowNull: false,
+    allowNull: true,
   })
   firstName: string;
 
   @Column({
     type: DataType.STRING,
-    allowNull: false,
+    allowNull: true,
   })
   lastName: string;
+
+  @Column({
+    type: DataType.STRING,
+    allowNull: true,
+  })
+  socialId: string;
 
   @Column({
     type: DataType.STRING,
@@ -52,10 +60,15 @@ export class User extends Model<User> {
   phoneNumber: string;
 
   @Column({
-    type: DataType.ENUM('credentials', 'google'),
+    type: DataType.ENUM<AllowedProviders>(
+      'credentials',
+      'google.com',
+      'facebook.com',
+      'apple.com',
+    ),
     defaultValue: 'credentials',
   })
-  auth_method: string;
+  provider: AllowedProviders;
 
   @Column({
     type: DataType.STRING,
@@ -66,6 +79,12 @@ export class User extends Model<User> {
     },
   })
   email: string;
+
+  @Column({
+    type: DataType.BOOLEAN,
+    defaultValue: false,
+  })
+  email_verified: boolean;
 
   @Column({
     type: DataType.STRING,
@@ -83,13 +102,13 @@ export class User extends Model<User> {
     type: DataType.BOOLEAN,
     defaultValue: false,
   })
-  verified_phone: boolean;
+  phone_verified: boolean;
 
   @Column({
     type: DataType.BOOLEAN,
     defaultValue: false,
   })
-  verified_kyc: boolean;
+  kyc_verified: boolean;
 
   @Column({
     type: DataType.STRING(200),
@@ -113,7 +132,7 @@ export class User extends Model<User> {
 
   @Column({
     type: DataType.STRING,
-    allowNull: false,
+    allowNull: true,
   })
   country: string;
 
@@ -158,15 +177,17 @@ export class User extends Model<User> {
 
   @BeforeValidate
   static setUsername(user: User) {
-    if (!user.username && user.firstName && user.lastName) {
+    if (
+      !user.username &&
+      user.provider === 'credentials' &&
+      user.firstName &&
+      user.lastName
+    ) {
       user.username = `${user.firstName} ${user.lastName}`;
     }
-  }
 
-  @BeforeUpdate
-  static async enforceUserAuthMethodChangePolicy(user: User) {
-    if (user.changed('auth_method')) {
-      throw new Error('Method of registration cannot be changed');
+    if (!user.username && user.provider !== 'credentials' && user.email) {
+      user.username = user.email.split('@')[0];
     }
   }
 
@@ -176,7 +197,7 @@ export class User extends Model<User> {
     delete user.password;
     delete user.terms_of_service;
     delete user.default_account_id;
-    delete user.auth_method;
+    delete user.provider;
     delete user.updatedAt;
 
     return user;
