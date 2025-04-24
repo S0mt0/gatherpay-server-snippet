@@ -6,7 +6,7 @@ import { User } from './models/user.model';
 import { AuthService } from './auth';
 import { Session } from './auth/models';
 import { CacheService } from 'src/lib/services';
-import { TFASID_TTL, SESSION, USER_2FA } from 'src/lib/constants';
+import { TFASID_TTL, USER_2FA } from 'src/lib/constants';
 import { decrypt, encrypt } from 'src/lib/utils';
 import { CodeDto } from './auth/dto';
 
@@ -54,12 +54,6 @@ export class UsersService {
     await session.save();
 
     await this.cacheService.delete(USER_2FA(decrypted));
-
-    await this.cacheService.set(
-      SESSION(session.id),
-      session,
-      this.authService.REFRESH_TOKEN_TTL,
-    );
 
     return session;
   }

@@ -13,7 +13,7 @@ import {
   CLOUDINARY_API_SECRET,
   CLOUDINARY_CLOUD_NAME,
   CLOUDINARY_UPLOAD_PRESET,
-} from '../../constants';
+} from '../constants';
 
 @Global()
 @Injectable()

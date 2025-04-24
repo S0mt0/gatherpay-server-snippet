@@ -6,7 +6,7 @@ import {
   TWILIO_ACCOUNT_SID,
   TWILIO_AUTH_TOKEN,
   TWILIO_SERVICE_SID,
-} from '../../constants';
+} from '../constants';
 
 @Global()
 @Injectable()

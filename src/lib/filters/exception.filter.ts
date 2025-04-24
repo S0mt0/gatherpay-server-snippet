@@ -27,16 +27,27 @@ export class AllExceptionsFilter extends BaseExceptionFilter {
 
     const errorResponse: TAppErrorResponse = {
       statusCode: exception?.status || HttpStatus.INTERNAL_SERVER_ERROR,
-      message: exception?.message || 'Something unexpected happened',
+      message:
+        exception?.status === HttpStatus.TOO_MANY_REQUESTS
+          ? 'Too many requests, try again later'
+          : exception?.status === HttpStatus.REQUEST_TIMEOUT
+            ? 'Request timed out. Try again'
+            : exception?.message || 'Something unexpected happened',
       timestamp: new Date().toISOString(),
     };
 
     if (exception instanceof HttpException) {
-      errorResponse.statusCode = exception.getStatus();
+      const status = exception.getStatus();
+
+      errorResponse.statusCode = status;
 
       const response = exception.getResponse();
 
-      if (typeof response === 'string') errorResponse.message = response;
+      if (typeof response === 'string')
+        errorResponse.message =
+          status === HttpStatus.TOO_MANY_REQUESTS
+            ? 'Too many requests, try again later'
+            : response;
 
       if (
         typeof response === 'object' &&

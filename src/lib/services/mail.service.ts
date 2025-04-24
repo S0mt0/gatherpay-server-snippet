@@ -1,14 +1,9 @@
 import { Global, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-
 import * as nodemailer from 'nodemailer';
 import SMTPTransport from 'nodemailer/lib/smtp-transport';
 
-import {
-  APP_NAME,
-  GOOGLE_APP_PASSWORD,
-  GOOGLE_APP_USER,
-} from '../../constants';
+import { APP_NAME, GOOGLE_APP_PASSWORD, GOOGLE_APP_USER } from '../constants';
 
 @Global()
 @Injectable()

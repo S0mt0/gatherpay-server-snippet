@@ -51,6 +51,7 @@ export class AuthService {
     @InjectModel(Session) private sessionModel: typeof Session,
   ) {
     const exp = this.configService.get<string>(JWT_REFRESH_TOKEN_EXP);
+    // Sync refresh token ttl with the jwt refresh token expiration time provided through .env.
     if (!isNaN(+exp)) this.REFRESH_TOKEN_TTL = +exp;
   }
 

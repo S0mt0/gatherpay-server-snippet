@@ -8,8 +8,8 @@ import {
   FIREBASE_PRIVATE_KEY,
   FIREBASE_PROJECT_ID,
   SUPPORTED_PROVIDERS,
-} from 'src/lib/constants';
-import { AllowedProviders } from 'src/lib/interface';
+} from '../constants';
+import { AllowedProviders } from '../interface';
 import { User } from 'src/users/models';
 
 @Injectable()

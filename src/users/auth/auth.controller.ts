@@ -61,19 +61,32 @@ export class AuthController {
     @Res({ passthrough: true }) res: Response,
     @DeviceInfo() deviceInfo: IDeviceInfo,
   ) {
-    const { refresh_token, ...data } = await this.authService.handleSocialLogin(
+    const loginResponse = await this.authService.handleSocialLogin(
       oauthDto,
       deviceInfo,
     );
 
-    res.cookie(REFRESH_TOKEN, refresh_token, {
-      httpOnly: true,
-      secure: true,
-      sameSite: 'none',
-      maxAge: this.authService.REFRESH_TOKEN_TTL,
-    });
+    if (loginResponse?.message && loginResponse?.TFASID) {
+      res.cookie(TFASID, loginResponse.TFASID, {
+        httpOnly: true,
+        secure: true,
+        sameSite: 'none',
+        maxAge: TFASID_TTL,
+      });
 
-    return data;
+      return loginResponse.message;
+    } else {
+      const { refresh_token, ...data } = loginResponse;
+
+      res.cookie(REFRESH_TOKEN, refresh_token, {
+        httpOnly: true,
+        secure: true,
+        sameSite: 'none',
+        maxAge: this.authService.REFRESH_TOKEN_TTL,
+      });
+
+      return data;
+    }
   }
   /**
    * Sign-up / create new account
