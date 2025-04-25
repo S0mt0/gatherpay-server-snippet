@@ -27,7 +27,7 @@ import { CacheService, FirebaseService } from 'src/lib/services';
 
 import { LoginUserDto, NewPasswordDto, CodeDto, OauthDto } from './dto';
 import { ForgotPasswordDto } from './dto';
-import { CreateUserDto } from './dto';
+import { CreateUserDto } from '../dto';
 import { User } from '../models/user.model';
 import { TwilioService } from 'src/lib/services';
 import { decrypt, encrypt, obscurePhoneNumber } from 'src/lib/utils';
@@ -74,7 +74,7 @@ export class AuthService {
         lastLoggedIn: new Date(),
         deviceIpAddress: deviceInfo.ip,
         deviceLastLoggedIn: deviceInfo.device,
-        logged_in_devices: [deviceInfo.device],
+        loggedInDevices: [deviceInfo.device],
       })
     )[0];
 
@@ -100,7 +100,7 @@ export class AuthService {
   async signUp(dto: CreateUserDto, sessionId: string) {
     // Check if there's an active signup session that hasn't completed verification.
     const signUpSession = await this.cache.get<CreateUserDto>(
-      SIGN_UP_SESSION(decrypt(sessionId || '')),
+      SIGN_UP_SESSION(decrypt(sessionId)),
     );
 
     if (signUpSession)
@@ -119,7 +119,7 @@ export class AuthService {
 
     // Check if a verified user with the same phone number exists
     if (userExists && userExists.phone_verified)
-      throw new ConflictException('Phone number already in use, try again.');
+      throw new ConflictException('Phone number taken, try another one.');
 
     const verificationInstance = await this.twilio.createVerifyCode(
       dto.phoneNumber,
@@ -219,7 +219,7 @@ export class AuthService {
           lastLoggedIn: new Date(),
           deviceIpAddress: deviceInfo.ip,
           deviceLastLoggedIn: deviceInfo.device,
-          logged_in_devices: [deviceInfo.device],
+          loggedInDevices: [deviceInfo.device],
         },
         { transaction },
       );
@@ -286,7 +286,7 @@ export class AuthService {
     if (!user || !(await user.verifyPassword(dto.password)))
       throw new UnauthorizedException('Invalid credentials');
 
-    if (!user.phone_verified)
+    if (user.provider === 'credentials' && !user.phone_verified)
       throw new ForbiddenException('Please verify your account to continue');
 
     const session = await this.sessionModel.findOne({
@@ -312,7 +312,7 @@ export class AuthService {
 
     const encrypted_refresh_token = encrypt(refresh_token);
 
-    const currentDevices = session.logged_in_devices || [];
+    const currentDevices = session.loggedInDevices || [];
     const deviceAlreadyExists = currentDevices.includes(deviceInfo.device);
     const updatedDevices = deviceAlreadyExists
       ? currentDevices
@@ -322,7 +322,7 @@ export class AuthService {
     session.lastLoggedIn = new Date();
     session.deviceIpAddress = deviceInfo.ip;
     session.deviceLastLoggedIn = deviceInfo.device;
-    session.logged_in_devices = updatedDevices;
+    session.loggedInDevices = updatedDevices;
 
     await session.save();
 
@@ -362,7 +362,7 @@ export class AuthService {
 
     const encrypted_refresh_token = encrypt(refresh_token);
 
-    const currentDevices = session.logged_in_devices || [];
+    const currentDevices = session.loggedInDevices || [];
     const deviceAlreadyExists = currentDevices.includes(deviceInfo.device);
     const updatedDevices = deviceAlreadyExists
       ? currentDevices
@@ -372,7 +372,7 @@ export class AuthService {
     session.lastLoggedIn = new Date();
     session.deviceIpAddress = deviceInfo.ip;
     session.deviceLastLoggedIn = deviceInfo.device;
-    session.logged_in_devices = updatedDevices;
+    session.loggedInDevices = updatedDevices;
     session.twoFactorLoggedIn = true;
     await session.save();
 
@@ -414,7 +414,7 @@ export class AuthService {
   };
 
   resendForgotPasswordCode = (sessionId: string) =>
-    this.forgotPassword({ phoneNumber: decrypt(sessionId || '') });
+    this.forgotPassword({ phoneNumber: decrypt(sessionId) });
 
   async verifyForgotPasswordCode(sessionId: string, dto: CodeDto) {
     const passwordSession = await this.cache.get<ForgotPasswordDto>(

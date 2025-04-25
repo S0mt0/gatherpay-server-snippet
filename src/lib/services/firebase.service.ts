@@ -44,7 +44,10 @@ export class FirebaseService implements OnModuleInit {
       email_verified,
       picture,
       firebase: { sign_in_provider },
+      ...rest
     } = await this.verifyIdToken(idToken);
+
+    console.log({ rest });
 
     let oauthUser = await this.userModel.findOne({
       where: { email },
@@ -72,7 +75,7 @@ export class FirebaseService implements OnModuleInit {
         provider,
         email_verified,
         terms_of_service: true,
-        avatarUrl: picture.replace('s96-c', 's384-c'), // I'm just increasing the image resolution here
+        picture: picture.replace('s96-c', 's384-c'), // I'm just increasing the image resolution here
       });
     }
 

@@ -1,8 +1,8 @@
 {
-  "name": "gather-pay",
+  "name": "gatherpay",
   "version": "1.0.0",
-  "description": "",
-  "author": "GatherPay Team",
+  "description": "API server of the GatherPay project",
+  "author": "Somtochukwu Nkem",
   "private": true,
   "license": "UNLICENSED",
   "scripts": {

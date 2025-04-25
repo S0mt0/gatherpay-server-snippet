@@ -20,7 +20,7 @@ import {
   CodeDto,
   OauthDto,
 } from './dto';
-import { CreateUserDto } from './dto';
+import { CreateUserDto } from '../dto';
 
 import {
   REFRESH_TOKEN,
@@ -240,7 +240,7 @@ export class AuthController {
   }
 
   /**
-   * Verify `2FA Login`
+   * Verify 2FA Login
    *
    * @remarks Provide code generated from any authentication app that has been linked with your account
    *
@@ -316,7 +316,7 @@ export class AuthController {
    * @throws {429} `Too Many Requests` - Limited to 4 requests per minute
    * @throws {502} `BadGateway Error` Error sending code via Twilio
    */
-  @Message('You rock! Now, create a new password🎊')
+  @Message('You rock! Now, create a new password.')
   @HttpCode(HttpStatus.OK)
   @Post('password/verify')
   async verifyPasswordResetCode(

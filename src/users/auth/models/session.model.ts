@@ -49,7 +49,7 @@ export class Session extends Model<Session> {
     type: DataType.ARRAY(DataType.STRING),
     allowNull: true,
   })
-  logged_in_devices: string[];
+  loggedInDevices: string[];
 
   @Column({
     type: DataType.STRING,

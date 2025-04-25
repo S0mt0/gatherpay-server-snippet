@@ -87,6 +87,24 @@ export class User extends Model<User> {
   email_verified: boolean;
 
   @Column({
+    type: DataType.BOOLEAN,
+    defaultValue: false,
+  })
+  getPaymentReminders: boolean;
+
+  @Column({
+    type: DataType.BOOLEAN,
+    defaultValue: false,
+  })
+  getGroupUpdates: boolean;
+
+  @Column({
+    type: DataType.BOOLEAN,
+    defaultValue: false,
+  })
+  getAnnouncements: boolean;
+
+  @Column({
     type: DataType.STRING,
     allowNull: false,
   })
@@ -121,14 +139,7 @@ export class User extends Model<User> {
     allowNull: true,
     defaultValue: () => getRandomAvatarUrl(),
   })
-  avatarUrl: string;
-
-  @ForeignKey(() => AccountDetail)
-  @Column({
-    type: DataType.UUID,
-    allowNull: true,
-  })
-  default_account_id: string;
+  picture: string;
 
   @Column({
     type: DataType.STRING,
@@ -136,7 +147,14 @@ export class User extends Model<User> {
   })
   country: string;
 
-  @BelongsTo(() => AccountDetail, 'default_account')
+  @ForeignKey(() => AccountDetail)
+  @Column({
+    type: DataType.UUID,
+    allowNull: true,
+  })
+  defaultAccountId: string;
+
+  @BelongsTo(() => AccountDetail)
   defaultAccount: AccountDetail;
 
   @HasMany(() => AccountDetail)
@@ -162,7 +180,7 @@ export class User extends Model<User> {
   })
   terms_of_service: boolean;
 
-  async verifyPassword(password: string): Promise<boolean> {
+  async verifyPassword(password: string) {
     if (!this.password) return false;
 
     return await argon.verify(this.password, password);
@@ -196,7 +214,7 @@ export class User extends Model<User> {
 
     delete user.password;
     delete user.terms_of_service;
-    delete user.default_account_id;
+    delete user.defaultAccountId;
     delete user.provider;
     delete user.updatedAt;
 

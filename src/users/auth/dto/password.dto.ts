@@ -15,13 +15,13 @@ export class NewPasswordDto {
 }
 
 export class UpdatePasswordDto {
-  @IsString()
+  @IsString({ message: '"current_password" is required' })
   current_password: string;
 
-  @IsString()
+  @IsString({ message: '"confirm_password" is required' })
   confirm_password: string;
 
-  @IsString()
+  @IsString({ message: '"password" is required' })
   @IsStrongPassword({ minLength: 6 }, { message: 'Password not strong enough' })
   new_password: string;
 }

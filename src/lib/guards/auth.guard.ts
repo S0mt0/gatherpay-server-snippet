@@ -65,7 +65,7 @@ export class AuthenticationGuard implements CanActivate {
       throw new UnauthorizedException('Invalid token.');
     }
 
-    if (!decoded || !decoded.sub)
+    if (!decoded?.sub)
       throw new UnauthorizedException(
         'Hey champ! Your session has expired, please log in again.',
       );
@@ -82,7 +82,10 @@ export class AuthenticationGuard implements CanActivate {
         where: { userId: decoded.sub },
       }));
 
-    if (!user || !session) throw new UnauthorizedException();
+    if (!user || !session)
+      throw new UnauthorizedException(
+        'Hey champ! Your session has expired, please log in again.',
+      );
 
     request['user'] = user;
     request['authSession'] = session;

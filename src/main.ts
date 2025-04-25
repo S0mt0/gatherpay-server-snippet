@@ -6,8 +6,8 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import * as cookieParser from 'cookie-parser';
 
 import { AppModule } from './app.module';
-import { app_description, corsOptions } from './lib/services/config';
-import { APP_NAME, APP_VERSION, PORT } from './lib/constants';
+import { corsOptions } from './lib/services/config';
+import { APP_DESCRIPTION, APP_NAME, APP_VERSION, PORT } from './lib/constants';
 import { AllExceptionsFilter } from './lib/filters';
 
 async function bootstrap() {
@@ -33,14 +33,14 @@ async function bootstrap() {
 
   const config = new DocumentBuilder()
     .setTitle(APP_NAME)
-    .setDescription(app_description)
+    .setDescription(APP_DESCRIPTION)
     .setVersion(APP_VERSION)
     .addBearerAuth({
       type: 'apiKey',
       in: 'header',
       name: 'Authorization',
     })
-    .setContact('Sewkito', '', 'sewkito@gmail.com')
+    .setContact('Somtochukwu Nkem', '', 'sewkito@gmail.com')
     .build();
 
   const document = SwaggerModule.createDocument(app, config);

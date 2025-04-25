@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post, Res } from '@nestjs/common';
+import { Body, Controller, Get, Post, Query, Res } from '@nestjs/common';
 import { ApiBearerAuth } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import { Response } from 'express';
@@ -13,8 +13,9 @@ import {
 } from 'src/lib/decorators';
 import { User } from './models';
 import { Session } from './auth/models';
-import { TFASID, TFASID_TTL, TIME_IN } from 'src/lib/constants';
-import { CodeDto } from './auth/dto';
+import { SID, SID_TTL, TFASID, TFASID_TTL, TIME_IN } from 'src/lib/constants';
+import { CodeDto, UpdatePasswordDto } from './auth/dto';
+import { ParseUserNotificationsQueryDto, UpdatePhoneNumberDto } from './dto';
 
 @Protect()
 @Message()
@@ -79,8 +80,55 @@ export class UsersController {
     return this.usersService.disable2FA(session);
   }
 
-  @Get()
-  findAll() {
-    return this.usersService.findAll();
+  @Message('Password updated🎉')
+  @Post('me/password')
+  changePassword(
+    @Body() updatePasswordDto: UpdatePasswordDto,
+    @AuthSession() session: Session,
+    @CurrentUser() user: User,
+  ) {
+    return this.usersService.handlePasswordChange(
+      updatePasswordDto,
+      user,
+      session,
+    );
+  }
+
+  @Post('me/phone')
+  async changePhoneNumber(
+    @Body() updatePhoneNumberDto: UpdatePhoneNumberDto,
+    @CurrentUser() user: User,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const session = await this.usersService.handlePhoneNumberChange(
+      updatePhoneNumberDto,
+      user,
+    );
+
+    res.cookie(SID, session, {
+      secure: true,
+      httpOnly: true,
+      sameSite: 'none',
+      maxAge: SID_TTL,
+    });
+  }
+
+  @Post('me/phone/verify')
+  async verifyPhoneNumberChange(
+    @ParseSessionCookie(SID) sessionId: string,
+    @CurrentUser() user: User,
+    @Body() codeDto: CodeDto,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    await this.usersService.verifyPhoneNumberChange(sessionId, codeDto, user);
+    res.clearCookie(SID);
+  }
+
+  @Get('me/notifications')
+  handleNotificationPreferences(
+    @CurrentUser() user: User,
+    @Query() query: ParseUserNotificationsQueryDto,
+  ) {
+    return this.usersService.handleNotificationPreferences(query, user);
   }
 }

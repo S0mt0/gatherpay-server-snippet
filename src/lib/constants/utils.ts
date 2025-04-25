@@ -45,6 +45,9 @@ export const APP_NAME = 'Gatherpay';
 
 export const APP_VERSION = '1.0';
 
+export const APP_DESCRIPTION =
+  'GatherPay is a community-driven platform that allows members to contribute funds on scheduled basis, track contributions, access payouts, chat with fellow members, and achieve personal financial goals together.';
+
 export const SUPPORTED_PROVIDERS: AllowedProviders[] = [
   'apple.com',
   'credentials',
