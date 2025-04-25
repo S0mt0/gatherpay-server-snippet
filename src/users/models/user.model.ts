@@ -20,7 +20,7 @@ import { Session } from '../auth/models/session.model';
 import { Group } from 'src/groups/models/group.model';
 import { UserGroup } from './user-group.model';
 import { AllowedProviders } from 'src/lib/interface';
-import { BankDetail } from 'src/accounts/models/account.model';
+import { BankDetail } from './bank-detail.model';
 
 export const USERS_TABLE = 'users';
 

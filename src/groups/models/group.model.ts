@@ -8,9 +8,9 @@ import {
   HasMany,
   BelongsToMany,
 } from 'sequelize-typescript';
-import { BankDetail } from 'src/accounts/models/account.model';
 
 import { Chat } from 'src/chats/models/chat.model';
+import { BankDetail } from 'src/users/models';
 import { UserGroup } from 'src/users/models/user-group.model';
 import { User } from 'src/users/models/user.model';
 

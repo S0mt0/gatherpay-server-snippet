@@ -12,7 +12,6 @@ import {
 import { ResponseInterceptor } from './lib/interceptors';
 import { UsersModule } from './users/users.module';
 import { GroupsModule } from './groups/groups.module';
-import { AccountsModule } from './accounts/accounts.module';
 import { ChatsModule } from './chats/chats.module';
 import {
   DatabaseModule,
@@ -48,7 +47,6 @@ import { AuthController } from './users/auth/auth.controller';
 
     UsersModule,
     GroupsModule,
-    AccountsModule,
     ChatsModule,
   ],
 

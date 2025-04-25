@@ -72,6 +72,7 @@ export class AuthenticationGuard implements CanActivate {
 
     const user = await this.userModel.findOne({
       where: { id: decoded.sub },
+      include: ['defaultBankDetail', 'allBankDetails', 'groups'],
     });
 
     const session = await this.sessionModel.findOne({

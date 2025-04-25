@@ -1,8 +1,10 @@
 import {
   BadGatewayException,
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   Injectable,
+  NotFoundException,
   UnauthorizedException,
   UnprocessableEntityException,
 } from '@nestjs/common';
@@ -21,17 +23,59 @@ import {
 } from 'src/lib/constants';
 import { decrypt, encrypt } from 'src/lib/utils';
 import { CodeDto, UpdatePasswordDto } from './auth/dto';
-import { ParseUserNotificationsQueryDto, UpdatePhoneNumberDto } from './dto';
-import { Group } from 'src/groups/models/group.model';
+import {
+  BankDetailsDto,
+  IdDto,
+  ParseUserNotificationsQueryDto,
+  UpdatePhoneNumberDto,
+  UpdateUserDto,
+} from './dto';
+import { BankDetail } from './models';
 
 @Injectable()
 export class UsersService {
   constructor(
     @InjectModel(User) private userModel: typeof User,
+    @InjectModel(BankDetail) private bankDetailModel: typeof BankDetail,
     private readonly authService: AuthService,
     private readonly cacheService: CacheService,
     private readonly twilioService: TwilioService,
   ) {}
+
+  async handleProfileUpdate(dto: UpdateUserDto, user: User) {
+    const {
+      bio,
+      picture,
+      username,
+      country,
+      firstName,
+      lastName,
+      email,
+      phoneNumber,
+    } = dto;
+
+    if (bio !== undefined) user.bio = bio;
+    if (picture !== undefined) user.picture = picture;
+    if (country !== undefined) user.country = country;
+    if (firstName !== undefined) user.firstName = firstName;
+    if (lastName !== undefined) user.lastName = lastName;
+    if (username !== undefined) user.username = username;
+
+    if (email !== undefined && user.provider === 'credentials')
+      user.email = email;
+
+    if (phoneNumber !== undefined && user.provider !== 'credentials')
+      user.phoneNumber = phoneNumber;
+
+    if (email !== undefined && user.provider !== 'credentials')
+      throw new BadRequestException(
+        'Email cannot be changed after registeration.',
+      );
+
+    await user.save();
+
+    return user;
+  }
 
   async enable2FA(user: User) {
     const { qrCode, secret: temp_secret } = this.authService.generate2FASecret(
@@ -178,15 +222,65 @@ export class UsersService {
     await user.save();
   }
 
+  async addBankDetails(dto: BankDetailsDto, user: User) {
+    const currentDetails = user.allBankDetails;
+
+    if (currentDetails.length >= 3)
+      throw new BadRequestException('You can only add up to 3 bank details');
+
+    const detailExists = this.bankDetailModel.findOne({
+      where: { bankName: dto.bankName, accountNumber: dto.accountNumber },
+    });
+
+    if (detailExists)
+      throw new ConflictException(
+        'These details already exist, add a different one.',
+      );
+
+    const transaction = await user.sequelize.transaction();
+    try {
+      const bank_detail = await this.bankDetailModel.create(dto, {
+        transaction,
+      });
+
+      if (!currentDetails.length) user.bankDetailId = bank_detail.id;
+
+      user.allBankDetails = [...currentDetails, bank_detail];
+      await user.save({ transaction });
+
+      return { bank_detail };
+    } catch (error) {
+      await transaction.rollback();
+      throw error;
+    }
+  }
+
+  async handleDefaultBankDetailsUpdate({ id }: IdDto, user: User) {
+    const bankDetail = await this.bankDetailModel.findByPk(id);
+
+    if (!bankDetail) throw new NotFoundException('Bank detail not found');
+
+    user.bankDetailId = bankDetail.id;
+    await user.save();
+  }
+
+  async getBankDetails(userId: string) {
+    return await this.bankDetailModel.findAll({ where: { userId } });
+  }
+
+  async getSingleBankDetail(id: string) {
+    return await this.bankDetailModel.findByPk(id);
+  }
+
+  async removeBankDetails(id: string, user: User) {
+    await this.bankDetailModel.destroy({ where: { id } });
+    if (user.bankDetailId === id) user.bankDetailId = null;
+  }
+
   async findUserWithRelations(userId: string) {
     return this.userModel.findOne({
       where: { id: userId },
-      include: [
-        { model: Session },
-        { model: Group, through: { attributes: [] } },
-        'defaultBankDetail',
-        'allBankDetails',
-      ],
+      include: ['defaultBankDetail', 'allBankDetails', 'groups'],
     });
   }
 }

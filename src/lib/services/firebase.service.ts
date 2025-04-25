@@ -54,7 +54,9 @@ export class FirebaseService implements OnModuleInit {
 
     const provider = sign_in_provider as AllowedProviders;
 
-    if (oauthUser && oauthUser.provider !== 'credentials') {
+    console.log({ provider });
+
+    if (oauthUser) {
       if (provider !== oauthUser.provider)
         throw new ForbiddenException(
           `This account was not registered with '${provider.split('.')[0]}', please sign in with '${oauthUser.provider.split('.')[0]}' instead`,

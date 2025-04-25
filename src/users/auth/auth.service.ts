@@ -78,7 +78,7 @@ export class AuthService {
     const session = (
       await this.sessionModel.upsert({
         userId: user.id,
-        refresh_token,
+        refresh_token: encrypted_refresh_token,
         lastLoggedIn: new Date(),
         deviceIpAddress: deviceInfo.ip,
         deviceLastLoggedIn: deviceInfo.device,
@@ -226,7 +226,7 @@ export class AuthService {
       const session = await this.sessionModel.create(
         {
           userId: user.id,
-          refresh_token,
+          refresh_token: encrypted_refresh_token,
           lastLoggedIn: new Date(),
           deviceIpAddress: deviceInfo.ip,
           deviceLastLoggedIn: deviceInfo.device,

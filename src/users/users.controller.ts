@@ -1,4 +1,13 @@
-import { Body, Controller, Get, Post, Query, Res } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Post,
+  Query,
+  Res,
+} from '@nestjs/common';
 import { ApiBearerAuth } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import { Response } from 'express';
@@ -15,7 +24,13 @@ import { User } from './models';
 import { Session } from './auth/models';
 import { SID, SID_TTL, TFASID, TFASID_TTL, TIME_IN } from 'src/lib/constants';
 import { CodeDto, UpdatePasswordDto } from './auth/dto';
-import { ParseUserNotificationsQueryDto, UpdatePhoneNumberDto } from './dto';
+import {
+  BankDetailsDto,
+  IdDto,
+  ParseUserNotificationsQueryDto,
+  UpdatePhoneNumberDto,
+  UpdateUserDto,
+} from './dto';
 
 @Protect()
 @Message()
@@ -28,6 +43,14 @@ export class UsersController {
   @Get('me')
   getCurrentUser(@CurrentUser() user: User) {
     return { user };
+  }
+
+  @Post('me')
+  handleProfileUpdate(
+    @Body() updateUserDto: UpdateUserDto,
+    @CurrentUser() user: User,
+  ) {
+    return this.usersService.handleProfileUpdate(updateUserDto, user);
   }
 
   @Get('me/session')
@@ -130,5 +153,36 @@ export class UsersController {
     @Query() query: ParseUserNotificationsQueryDto,
   ) {
     return this.usersService.handleNotificationPreferences(query, user);
+  }
+
+  @Post('me/bank-details')
+  addBankDetails(
+    @CurrentUser() user: User,
+    @Body() bankDetailsDto: BankDetailsDto,
+  ) {
+    return this.usersService.addBankDetails(bankDetailsDto, user);
+  }
+
+  @Post('me/bank-details/default')
+  handleDefaultBankDetailsUpdate(
+    @CurrentUser() user: User,
+    @Body() idDto: IdDto,
+  ) {
+    return this.usersService.handleDefaultBankDetailsUpdate(idDto, user);
+  }
+
+  @Get('me/bank-details')
+  getBankDetails(@CurrentUser('id') userId: string) {
+    return this.usersService.getBankDetails(userId);
+  }
+
+  @Get('me/bank-details/:id')
+  getSingleBankDetails(@Param('id') id: string) {
+    return this.usersService.getSingleBankDetail(id);
+  }
+
+  @Delete('me/bank-details/:id')
+  removeBankDetails(@CurrentUser() user: User, @Param('id') id: string) {
+    return this.usersService.removeBankDetails(id, user);
   }
 }

@@ -6,11 +6,20 @@ import {
   ForeignKey,
 } from 'sequelize-typescript';
 
-import { User } from 'src/users/models/user.model';
+import { User } from './user.model';
 
-export const BANK_ACCOUNTS_TABLE = 'bank_details';
+export const BANK_DETAILS_TABLE = 'bank_details';
 
-@Table({ tableName: BANK_ACCOUNTS_TABLE })
+@Table({
+  tableName: BANK_DETAILS_TABLE,
+  indexes: [
+    {
+      name: 'unique_bankName_accountNumber_combo',
+      unique: true,
+      fields: ['bankName', 'accountNumber'],
+    },
+  ],
+})
 export class BankDetail extends Model<BankDetail> {
   @Column({
     type: DataType.UUID,
