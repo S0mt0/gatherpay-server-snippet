@@ -70,17 +70,13 @@ export class AuthenticationGuard implements CanActivate {
         'Hey champ! Your session has expired, please log in again.',
       );
 
-    const user =
-      request['user'] ||
-      (await this.userModel.findOne({
-        where: { id: decoded.sub },
-      }));
+    const user = await this.userModel.findOne({
+      where: { id: decoded.sub },
+    });
 
-    const session =
-      (request['authSession'] as Session) ||
-      (await this.sessionModel.findOne({
-        where: { userId: decoded.sub },
-      }));
+    const session = await this.sessionModel.findOne({
+      where: { userId: decoded.sub },
+    });
 
     if (!user || !session)
       throw new UnauthorizedException(

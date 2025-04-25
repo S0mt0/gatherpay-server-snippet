@@ -1,3 +1,4 @@
+import { WhereOptions } from 'sequelize';
 import { InjectModel } from '@nestjs/sequelize';
 import {
   BadGatewayException,
@@ -55,6 +56,13 @@ export class AuthService {
     if (!isNaN(+exp)) this.REFRESH_TOKEN_TTL = +exp;
   }
 
+  async findUserWithRelations(filter: { where: WhereOptions<User> }) {
+    return this.userModel.findOne({
+      ...filter,
+      include: ['defaultBankDetail', 'allBankDetails', 'groups'],
+    });
+  }
+
   async handleSocialLogin(dto: OauthDto, deviceInfo: IDeviceInfo) {
     const user = await this.firebaseService.validateUserWithIdToken(
       dto.idToken,
@@ -77,6 +85,9 @@ export class AuthService {
         loggedInDevices: [deviceInfo.device],
       })
     )[0];
+
+    user.sessionId = session.id;
+    await user.save();
 
     // Check if 2FA is enabled for user
     if (session.twoFactorEnabled && session.twoFactorSecret) {
@@ -212,7 +223,7 @@ export class AuthService {
 
       const encrypted_refresh_token = encrypt(refresh_token);
 
-      await this.sessionModel.create(
+      const session = await this.sessionModel.create(
         {
           userId: user.id,
           refresh_token,
@@ -223,6 +234,9 @@ export class AuthService {
         },
         { transaction },
       );
+
+      user.sessionId = session.id;
+      await user.save({ transaction });
 
       await transaction.commit();
       await this.cache.delete(SIGN_UP_SESSION(signUpSession.phoneNumber));
@@ -279,7 +293,7 @@ export class AuthService {
   }
 
   async login(dto: LoginUserDto, deviceInfo: IDeviceInfo) {
-    const user = await this.userModel.findOne({
+    const user = await this.findUserWithRelations({
       where: { phoneNumber: dto.phoneNumber },
     });
 

@@ -270,6 +270,8 @@ export class AuthController {
       deviceInfo,
     );
 
+    res.clearCookie(TFASID);
+
     res.cookie(REFRESH_TOKEN, refresh_token, {
       httpOnly: true,
       secure: true,
@@ -347,11 +349,13 @@ export class AuthController {
   @Message('Voila! Your password has been changed🥳')
   @HttpCode(HttpStatus.OK)
   @Put('password/reset')
-  resetPassword(
+  async resetPassword(
     @Body() newPasswordDto: NewPasswordDto,
     @ParseSessionCookie() sessionId: string,
+    @Res({ passthrough: true }) res: Response,
   ) {
-    return this.authService.resetPassword(sessionId, newPasswordDto);
+    await this.authService.resetPassword(sessionId, newPasswordDto);
+    res.clearCookie(SID);
   }
 
   /**

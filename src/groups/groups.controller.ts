@@ -10,7 +10,11 @@ import {
 import { GroupsService } from './groups.service';
 import { CreateGroupDto } from './dto/create-group.dto';
 import { UpdateGroupDto } from './dto/update-group.dto';
+import { Protect } from 'src/lib/decorators';
+import { ApiBearerAuth } from '@nestjs/swagger';
 
+@Protect()
+@ApiBearerAuth()
 @Controller('groups')
 export class GroupsController {
   constructor(private readonly groupsService: GroupsService) {}

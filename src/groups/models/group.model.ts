@@ -8,7 +8,7 @@ import {
   HasMany,
   BelongsToMany,
 } from 'sequelize-typescript';
-import { AccountDetail } from 'src/accounts/models/account.model';
+import { BankDetail } from 'src/accounts/models/account.model';
 
 import { Chat } from 'src/chats/models/chat.model';
 import { UserGroup } from 'src/users/models/user-group.model';
@@ -64,15 +64,15 @@ export class Group extends Model<Group> {
   })
   contributionGoal: number;
 
-  @ForeignKey(() => AccountDetail)
+  @ForeignKey(() => BankDetail)
   @Column({
     type: DataType.UUID,
     allowNull: true,
   })
   defaultDepositAccountId: string;
 
-  @BelongsTo(() => AccountDetail, 'deposit_account')
-  depositAccount: AccountDetail;
+  @BelongsTo(() => BankDetail, 'deposit_account')
+  depositAccount: BankDetail;
 
   @BelongsToMany(() => User, () => UserGroup)
   members: User[];

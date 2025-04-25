@@ -22,6 +22,7 @@ import {
 import { decrypt, encrypt } from 'src/lib/utils';
 import { CodeDto, UpdatePasswordDto } from './auth/dto';
 import { ParseUserNotificationsQueryDto, UpdatePhoneNumberDto } from './dto';
+import { Group } from 'src/groups/models/group.model';
 
 @Injectable()
 export class UsersService {
@@ -175,5 +176,17 @@ export class UsersService {
       user.getPaymentReminders = payment_reminders;
 
     await user.save();
+  }
+
+  async findUserWithRelations(userId: string) {
+    return this.userModel.findOne({
+      where: { id: userId },
+      include: [
+        { model: Session },
+        { model: Group, through: { attributes: [] } },
+        'defaultBankDetail',
+        'allBankDetails',
+      ],
+    });
   }
 }

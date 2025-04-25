@@ -4,13 +4,14 @@ import {
   Model,
   DataType,
   ForeignKey,
-  BelongsTo,
 } from 'sequelize-typescript';
 
 import { User } from 'src/users/models/user.model';
 
-@Table({ tableName: 'account_details' })
-export class AccountDetail extends Model<AccountDetail> {
+export const BANK_ACCOUNTS_TABLE = 'bank_details';
+
+@Table({ tableName: BANK_ACCOUNTS_TABLE })
+export class BankDetail extends Model<BankDetail> {
   @Column({
     type: DataType.UUID,
     primaryKey: true,
@@ -33,7 +34,7 @@ export class AccountDetail extends Model<AccountDetail> {
 
   @Column({
     type: DataType.STRING,
-    allowNull: false,
+    allowNull: true,
   })
   accountName: string;
 
@@ -49,7 +50,4 @@ export class AccountDetail extends Model<AccountDetail> {
     allowNull: false,
   })
   userId: string;
-
-  @BelongsTo(() => User)
-  user: User;
 }

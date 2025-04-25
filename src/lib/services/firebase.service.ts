@@ -47,10 +47,9 @@ export class FirebaseService implements OnModuleInit {
       ...rest
     } = await this.verifyIdToken(idToken);
 
-    console.log({ rest });
-
     let oauthUser = await this.userModel.findOne({
       where: { email },
+      include: ['defaultBankDetail', 'allBankDetails', 'groups'],
     });
 
     const provider = sign_in_provider as AllowedProviders;
@@ -66,8 +65,11 @@ export class FirebaseService implements OnModuleInit {
       // If user doesn't already exist, then create a new user
       if (!SUPPORTED_PROVIDERS.includes(provider))
         throw new ForbiddenException(
-          'Please register using either of google, facebook, apple or your phone number and password,',
+          'Please register using either of google, facebook, apple or your credentials (phone number and password)',
         );
+
+      const name = rest?.name as string;
+      const [firstName, lastName] = name.split(' ');
 
       oauthUser = await this.userModel.create({
         socialId: uid,
@@ -76,6 +78,9 @@ export class FirebaseService implements OnModuleInit {
         email_verified,
         terms_of_service: true,
         picture: picture.replace('s96-c', 's384-c'), // I'm just increasing the image resolution here
+        firstName,
+        lastName,
+        username: lastName ? `${firstName} ${lastName}` : firstName,
       });
     }
 
