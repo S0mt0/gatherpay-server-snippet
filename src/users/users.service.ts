@@ -228,7 +228,7 @@ export class UsersService {
     if (currentDetails.length >= 3)
       throw new BadRequestException('You can only add up to 3 bank details');
 
-    const detailExists = this.bankDetailModel.findOne({
+    const detailExists = await this.bankDetailModel.findOne({
       where: { bankName: dto.bankName, accountNumber: dto.accountNumber },
     });
 

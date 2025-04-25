@@ -212,6 +212,9 @@ export class AuthService {
         {
           ...signUpSession,
           phone_verified: true,
+          groups: [],
+          allBankDetails: [],
+          defaultBankDetail: null,
         },
         { transaction },
       );
