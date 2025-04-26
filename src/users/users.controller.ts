@@ -50,7 +50,6 @@ export class UsersController {
     return { user };
   }
 
-  // @HttpCode(HttpStatus.OK)
   @Patch('me')
   handleProfileUpdate(
     @Body() updateUserDto: UpdateUserDto,

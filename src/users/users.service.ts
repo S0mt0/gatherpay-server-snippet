@@ -44,36 +44,10 @@ export class UsersService {
   ) {}
 
   async handleProfileUpdate(dto: UpdateUserDto, user: User) {
-    const {
-      bio,
-      picture,
-      username,
-      country,
-      firstName,
-      lastName,
-      email,
-      phoneNumber,
-    } = dto;
+    if (dto.phoneNumber !== undefined && user.provider === 'credentials')
+      delete dto.phoneNumber; // Don't allow direct update of phone number for credentials users. There's a dedicated route for that where they'd be required to verify their new number
 
-    if (bio !== undefined) user.bio = bio;
-    if (picture !== undefined) user.picture = picture;
-    if (country !== undefined) user.country = country;
-    if (firstName !== undefined) user.firstName = firstName;
-    if (lastName !== undefined) user.lastName = lastName;
-    if (username !== undefined) user.username = username;
-
-    if (email !== undefined && user.provider === 'credentials')
-      user.email = email;
-
-    if (phoneNumber !== undefined && user.provider !== 'credentials')
-      user.phoneNumber = phoneNumber;
-
-    if (email !== undefined && user.provider !== 'credentials')
-      throw new BadRequestException(
-        'Email cannot be changed after registeration.',
-      );
-
-    await user.save();
+    await user.update(dto);
 
     return user;
   }

@@ -10,9 +10,10 @@ import {
   BelongsToMany,
   BeforeValidate,
   BelongsTo,
+  BeforeUpdate,
 } from 'sequelize-typescript';
 import * as argon from 'argon2';
-import { BadRequestException } from '@nestjs/common';
+import { UnprocessableEntityException } from '@nestjs/common';
 
 import { getRandomAvatarUrl } from 'src/lib/utils';
 
@@ -130,7 +131,9 @@ export class User extends Model<User> {
     validate: {
       isTrue(value: boolean) {
         if (value !== true) {
-          throw new BadRequestException('Please accept our terms of service.');
+          throw new UnprocessableEntityException(
+            'Please accept our terms of service.',
+          );
         }
       },
     },
@@ -195,7 +198,7 @@ export class User extends Model<User> {
 
   @BeforeSave
   static async hashPassword(user: User) {
-    if (user.password) {
+    if (user.changed('password')) {
       user.password = await argon.hash(user.password);
     }
   }
@@ -213,6 +216,24 @@ export class User extends Model<User> {
 
     if (!user.username && user.provider !== 'credentials' && user.email) {
       user.username = user.email.split('@')[0];
+    }
+  }
+
+  @BeforeUpdate
+  static async enforceUserEmailChangePolicy(user: User) {
+    if (user.provider !== 'credentials' && user.changed('email')) {
+      throw new UnprocessableEntityException(
+        'Email cannot be changed after registeration.',
+      );
+    }
+  }
+
+  @BeforeUpdate
+  static async enforceUserProviderChangePolicy(user: User) {
+    if (user.changed('provider')) {
+      throw new UnprocessableEntityException(
+        'Method of registration cannot be changed',
+      );
     }
   }
 
