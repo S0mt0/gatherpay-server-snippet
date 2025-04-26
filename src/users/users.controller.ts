@@ -3,6 +3,8 @@ import {
   Controller,
   Delete,
   Get,
+  HttpCode,
+  HttpStatus,
   Param,
   Patch,
   Post,
@@ -47,6 +49,7 @@ export class UsersController {
     return { user };
   }
 
+  @HttpCode(HttpStatus.OK)
   @Post('me')
   handleProfileUpdate(
     @Body() updateUserDto: UpdateUserDto,
@@ -81,6 +84,7 @@ export class UsersController {
 
   @Message('Two-factor-authentication enabled💪')
   @Throttle({ default: { limit: 10, ttl: TIME_IN.minutes[1] } })
+  @HttpCode(HttpStatus.OK)
   @Post('me/2fa/verify')
   async verify2FA(
     @ParseSessionCookie(TFASID) TFASID: string,
@@ -106,6 +110,7 @@ export class UsersController {
   }
 
   @Message('Password updated🎉')
+  @HttpCode(HttpStatus.OK)
   @Post('me/password')
   changePassword(
     @Body() updatePasswordDto: UpdatePasswordDto,
@@ -119,6 +124,7 @@ export class UsersController {
     );
   }
 
+  @HttpCode(HttpStatus.OK)
   @Post('me/phone')
   async changePhoneNumber(
     @Body() updatePhoneNumberDto: UpdatePhoneNumberDto,
@@ -138,6 +144,7 @@ export class UsersController {
     });
   }
 
+  @HttpCode(HttpStatus.OK)
   @Post('me/phone/verify')
   async verifyPhoneNumberChange(
     @ParseSessionCookie(SID) sessionId: string,
@@ -165,12 +172,10 @@ export class UsersController {
     return this.usersService.addBankDetails(bankDetailsDto, user);
   }
 
+  @HttpCode(HttpStatus.OK)
   @Post('me/bank-details/default')
-  handleDefaultBankDetailsUpdate(
-    @CurrentUser() user: User,
-    @Body() idDto: IdDto,
-  ) {
-    return this.usersService.handleDefaultBankDetailsUpdate(idDto, user);
+  updateDefaultBankDetails(@CurrentUser() user: User, @Body() idDto: IdDto) {
+    return this.usersService.updateDefaultBankDetails(idDto, user);
   }
 
   @Get('me/bank-details')
@@ -179,16 +184,20 @@ export class UsersController {
   }
 
   @Get('me/bank-details/:id')
-  getSingleBankDetail(@Param('id') id: string) {
-    return this.usersService.getSingleBankDetail(id);
+  getSingleBankDetail(
+    @Param('id') id: string,
+    @CurrentUser('id') userId: string,
+  ) {
+    return this.usersService.getSingleBankDetail(id, userId);
   }
 
   @Patch('me/bank-details/:id')
   updateBankDetail(
     @Param('id') id: string,
     updateBankDetailDto: UpdateBankDetailDto,
+    @CurrentUser('id') userId: string,
   ) {
-    return this.usersService.updateBankDetail(id, updateBankDetailDto);
+    return this.usersService.updateBankDetail(id, updateBankDetailDto, userId);
   }
 
   @Delete('me/bank-details/:id')

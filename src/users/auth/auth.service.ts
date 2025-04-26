@@ -86,8 +86,7 @@ export class AuthService {
       })
     )[0];
 
-    user.sessionId = session.id;
-    await user.save();
+    await user.update({ sessionId: session.id });
 
     // Check if 2FA is enabled for user
     if (session.twoFactorEnabled && session.twoFactorSecret) {
@@ -212,9 +211,6 @@ export class AuthService {
         {
           ...signUpSession,
           phone_verified: true,
-          groups: [],
-          allBankDetails: [],
-          defaultBankDetail: null,
         },
         { transaction },
       );
@@ -238,8 +234,7 @@ export class AuthService {
         { transaction },
       );
 
-      user.sessionId = session.id;
-      await user.save({ transaction });
+      await user.update({ sessionId: session.id }, { transaction });
 
       await transaction.commit();
       await this.cache.delete(SIGN_UP_SESSION(signUpSession.phoneNumber));
@@ -335,13 +330,13 @@ export class AuthService {
       ? currentDevices
       : [...currentDevices, deviceInfo.device];
 
-    session.refresh_token = encrypted_refresh_token;
-    session.lastLoggedIn = new Date();
-    session.deviceIpAddress = deviceInfo.ip;
-    session.deviceLastLoggedIn = deviceInfo.device;
-    session.loggedInDevices = updatedDevices;
-
-    await session.save();
+    await session.update({
+      refresh_token: encrypted_refresh_token,
+      lastLoggedIn: new Date(),
+      deviceIpAddress: deviceInfo.ip,
+      deviceLastLoggedIn: deviceInfo.device,
+      loggedInDevices: updatedDevices,
+    });
 
     return {
       user,
@@ -385,13 +380,14 @@ export class AuthService {
       ? currentDevices
       : [...currentDevices, deviceInfo.device];
 
-    session.refresh_token = encrypted_refresh_token;
-    session.lastLoggedIn = new Date();
-    session.deviceIpAddress = deviceInfo.ip;
-    session.deviceLastLoggedIn = deviceInfo.device;
-    session.loggedInDevices = updatedDevices;
-    session.twoFactorLoggedIn = true;
-    await session.save();
+    await session.update({
+      refresh_token: encrypted_refresh_token,
+      lastLoggedIn: new Date(),
+      deviceIpAddress: deviceInfo.ip,
+      deviceLastLoggedIn: deviceInfo.device,
+      loggedInDevices: updatedDevices,
+      twoFactorLoggedIn: true,
+    });
 
     await this.cache.delete(USER_2FA(decrypted));
 
@@ -477,8 +473,7 @@ export class AuthService {
     if (dto.new_password !== dto.confirm_password)
       throw new UnprocessableEntityException('Passwords do not match');
 
-    user.password = dto.new_password;
-    await user.save();
+    await user.update({ password: dto.new_password });
     await this.cache.delete(PASSWORD_SESSION(decrypted));
   }
 
@@ -518,9 +513,10 @@ export class AuthService {
 
     if (!activeSession) return;
 
-    activeSession.refresh_token = null;
-    activeSession.twoFactorLoggedIn = false;
-    await activeSession.save();
+    await activeSession.update({
+      refresh_token: null,
+      twoFactorLoggedIn: false,
+    });
   }
 
   generate2FASecret(name?: string, length?: number) {

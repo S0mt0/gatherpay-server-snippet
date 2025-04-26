@@ -108,10 +108,11 @@ export class UsersService {
 
     if (!isValidated) throw new ForbiddenException('Invalid code');
 
-    session.twoFactorEnabled = true;
-    session.twoFactorSecret = temp_secret;
-    session.twoFactorLoggedIn = true;
-    await session.save();
+    await session.update({
+      twoFactorEnabled: true,
+      twoFactorLoggedIn: true,
+      twoFactorSecret: temp_secret,
+    });
 
     await this.cacheService.delete(USER_2FA(decrypted));
 
@@ -119,10 +120,11 @@ export class UsersService {
   }
 
   async disable2FA(session: Session) {
-    session.twoFactorEnabled = false;
-    session.twoFactorLoggedIn = false;
-    session.twoFactorSecret = null;
-    await session.save();
+    await session.update({
+      twoFactorEnabled: false,
+      twoFactorLoggedIn: false,
+      twoFactorSecret: null,
+    });
   }
 
   async handlePasswordChange(
@@ -143,11 +145,11 @@ export class UsersService {
     const transaction = await user.sequelize.transaction();
 
     try {
-      user.password = dto.new_password;
-      session.passwordLastChanged = new Date();
-
-      await user.save({ transaction });
-      await session.save({ transaction });
+      await user.update({ password: dto.new_password }, { transaction });
+      await session.update(
+        { passwordLastChanged: new Date() },
+        { transaction },
+      );
 
       await transaction.commit();
     } catch (error) {
@@ -160,9 +162,10 @@ export class UsersService {
     const provider = user.provider;
 
     if (provider !== 'credentials') {
-      user.phoneNumber = dto.phoneNumber;
-      user.phone_verified = false;
-      await user.save();
+      await user.update({
+        phoneNumber: dto.phoneNumber,
+        phone_verified: false,
+      });
 
       return;
     }
@@ -203,8 +206,7 @@ export class UsersService {
     if (verificationCheckInstance.status !== 'approved')
       throw new ForbiddenException('Expired or incorrect code, try again.');
 
-    user.phoneNumber = phoneChangeSession.phoneNumber;
-    await user.save();
+    await user.update({ phoneNumber: phoneChangeSession.phoneNumber });
   }
 
   async handleNotificationPreferences(
@@ -224,13 +226,19 @@ export class UsersService {
   }
 
   async addBankDetails(dto: BankDetailsDto, user: User) {
-    const currentDetails = user.allBankDetails;
+    const count = await this.bankDetailModel.count({
+      where: { userId: user.id },
+    });
 
-    if (currentDetails.length >= 3)
+    if (count >= 3) {
       throw new BadRequestException('You can only add up to 3 bank details');
-
+    }
     const detailExists = await this.bankDetailModel.findOne({
-      where: { bankName: dto.bankName, accountNumber: dto.accountNumber },
+      where: {
+        bankName: dto.bankName,
+        accountNumber: dto.accountNumber,
+        userId: user.id,
+      },
     });
 
     if (detailExists)
@@ -239,6 +247,7 @@ export class UsersService {
       );
 
     const transaction = await user.sequelize.transaction();
+
     try {
       const bank_detail = await this.bankDetailModel.create(
         { ...dto, userId: user.id },
@@ -247,10 +256,12 @@ export class UsersService {
         },
       );
 
-      if (!currentDetails.length) user.bankDetailId = bank_detail.id;
+      // Set as default if first bank detail
+      if (count === 0) {
+        await user.update({ bankDetailId: bank_detail.id }, { transaction });
+      }
 
-      user.allBankDetails = [...currentDetails, bank_detail];
-      await user.save({ transaction });
+      await transaction.commit();
 
       return { bank_detail };
     } catch (error) {
@@ -259,33 +270,56 @@ export class UsersService {
     }
   }
 
-  async handleDefaultBankDetailsUpdate({ id }: IdDto, user: User) {
-    const bankDetail = await this.bankDetailModel.findByPk(id);
+  async updateDefaultBankDetails({ id }: IdDto, user: User) {
+    const bankDetail = await this.bankDetailModel.findOne({
+      where: { id, userId: user.id },
+    });
 
     if (!bankDetail) throw new NotFoundException('Bank detail not found');
 
-    user.bankDetailId = bankDetail.id;
-    await user.save();
+    await user.update({ bankDetailId: bankDetail.id });
   }
 
   async getBankDetails(userId: string) {
     return await this.bankDetailModel.findAll({ where: { userId } });
   }
 
-  async getSingleBankDetail(id: string) {
-    return await this.bankDetailModel.findByPk(id);
+  async getSingleBankDetail(id: string, userId: string) {
+    const bank_detail = await this.bankDetailModel.findOne({
+      where: { id, userId },
+    });
+    return { bank_detail };
   }
 
-  async updateBankDetail(id: string, dto: UpdateBankDetailDto) {
-    return await this.bankDetailModel.update(dto, {
-      where: { id },
+  async updateBankDetail(id: string, dto: UpdateBankDetailDto, userId: string) {
+    const bank_detail = await this.bankDetailModel.update(dto, {
+      where: { id, userId },
       returning: true,
     });
+
+    return { bank_detail };
   }
 
   async removeBankDetails(id: string, user: User) {
-    await this.bankDetailModel.destroy({ where: { id } });
-    if (user.bankDetailId === id) user.bankDetailId = null;
+    const transaction = await user.sequelize.transaction();
+    try {
+      const bankDetail = await this.bankDetailModel.findOne({
+        where: { id, userId: user.id },
+        transaction,
+      });
+
+      if (!bankDetail) throw new NotFoundException('Bank detail not found');
+
+      await bankDetail.destroy({ transaction });
+
+      if (user.bankDetailId === id)
+        await user.update({ bankDetailId: null }, { transaction });
+
+      await transaction.commit();
+    } catch (error) {
+      await transaction.rollback();
+      throw error;
+    }
   }
 
   async deleteAccount(user: User) {

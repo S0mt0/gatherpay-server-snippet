@@ -4,6 +4,7 @@ import {
   Model,
   DataType,
   ForeignKey,
+  BelongsTo,
 } from 'sequelize-typescript';
 
 import { User } from './user.model';
@@ -59,4 +60,18 @@ export class BankDetail extends Model<BankDetail> {
     allowNull: false,
   })
   userId: string;
+
+  @BelongsTo(() => User)
+  @Column({
+    type: DataType.UUID,
+    allowNull: false,
+  })
+  user: User;
+
+  toJSON() {
+    const bank = super.toJSON();
+
+    delete bank.userId;
+    return bank;
+  }
 }
