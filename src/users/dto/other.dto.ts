@@ -1,4 +1,4 @@
-import { PickType } from '@nestjs/swagger';
+import { PartialType, PickType } from '@nestjs/swagger';
 import { IsBoolean, IsOptional, IsString, MinLength } from 'class-validator';
 import { Transform } from 'class-transformer';
 
@@ -49,3 +49,5 @@ export class IdDto {
   @IsString({ message: '"id" is required' })
   id: string;
 }
+
+export class UpdateBankDetailDto extends PartialType(BankDetailsDto) {}

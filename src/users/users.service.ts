@@ -27,6 +27,7 @@ import {
   BankDetailsDto,
   IdDto,
   ParseUserNotificationsQueryDto,
+  UpdateBankDetailDto,
   UpdatePhoneNumberDto,
   UpdateUserDto,
 } from './dto';
@@ -239,9 +240,12 @@ export class UsersService {
 
     const transaction = await user.sequelize.transaction();
     try {
-      const bank_detail = await this.bankDetailModel.create(dto, {
-        transaction,
-      });
+      const bank_detail = await this.bankDetailModel.create(
+        { ...dto, userId: user.id },
+        {
+          transaction,
+        },
+      );
 
       if (!currentDetails.length) user.bankDetailId = bank_detail.id;
 
@@ -272,9 +276,20 @@ export class UsersService {
     return await this.bankDetailModel.findByPk(id);
   }
 
+  async updateBankDetail(id: string, dto: UpdateBankDetailDto) {
+    return await this.bankDetailModel.update(dto, {
+      where: { id },
+      returning: true,
+    });
+  }
+
   async removeBankDetails(id: string, user: User) {
     await this.bankDetailModel.destroy({ where: { id } });
     if (user.bankDetailId === id) user.bankDetailId = null;
+  }
+
+  async deleteAccount(user: User) {
+    await user.destroy();
   }
 
   async findUserWithRelations(userId: string) {

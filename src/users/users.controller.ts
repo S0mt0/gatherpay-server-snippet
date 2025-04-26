@@ -4,6 +4,7 @@ import {
   Delete,
   Get,
   Param,
+  Patch,
   Post,
   Query,
   Res,
@@ -28,6 +29,7 @@ import {
   BankDetailsDto,
   IdDto,
   ParseUserNotificationsQueryDto,
+  UpdateBankDetailDto,
   UpdatePhoneNumberDto,
   UpdateUserDto,
 } from './dto';
@@ -177,12 +179,26 @@ export class UsersController {
   }
 
   @Get('me/bank-details/:id')
-  getSingleBankDetails(@Param('id') id: string) {
+  getSingleBankDetail(@Param('id') id: string) {
     return this.usersService.getSingleBankDetail(id);
+  }
+
+  @Patch('me/bank-details/:id')
+  updateBankDetail(
+    @Param('id') id: string,
+    updateBankDetailDto: UpdateBankDetailDto,
+  ) {
+    return this.usersService.updateBankDetail(id, updateBankDetailDto);
   }
 
   @Delete('me/bank-details/:id')
   removeBankDetails(@CurrentUser() user: User, @Param('id') id: string) {
     return this.usersService.removeBankDetails(id, user);
+  }
+
+  @Message('We hate to see you go😔')
+  @Delete('me/delete-account')
+  deleteAccount(@CurrentUser() user: User) {
+    return this.usersService.deleteAccount(user);
   }
 }
