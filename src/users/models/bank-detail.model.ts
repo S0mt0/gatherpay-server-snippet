@@ -62,16 +62,13 @@ export class BankDetail extends Model<BankDetail> {
   userId: string;
 
   @BelongsTo(() => User)
-  @Column({
-    type: DataType.UUID,
-    allowNull: false,
-  })
-  user: User;
+  owner: User;
 
   toJSON() {
     const bank = super.toJSON();
 
     delete bank.userId;
+
     return bank;
   }
 }

@@ -8,6 +8,7 @@ import {
   Param,
   Patch,
   Post,
+  Put,
   Query,
   Res,
 } from '@nestjs/common';
@@ -49,8 +50,8 @@ export class UsersController {
     return { user };
   }
 
-  @HttpCode(HttpStatus.OK)
-  @Post('me')
+  // @HttpCode(HttpStatus.OK)
+  @Patch('me')
   handleProfileUpdate(
     @Body() updateUserDto: UpdateUserDto,
     @CurrentUser() user: User,
@@ -111,7 +112,7 @@ export class UsersController {
 
   @Message('Password updated🎉')
   @HttpCode(HttpStatus.OK)
-  @Post('me/password')
+  @Patch('me/password')
   changePassword(
     @Body() updatePasswordDto: UpdatePasswordDto,
     @AuthSession() session: Session,
@@ -125,7 +126,7 @@ export class UsersController {
   }
 
   @HttpCode(HttpStatus.OK)
-  @Post('me/phone')
+  @Patch('me/phone')
   async changePhoneNumber(
     @Body() updatePhoneNumberDto: UpdatePhoneNumberDto,
     @CurrentUser() user: User,
@@ -156,7 +157,7 @@ export class UsersController {
     res.clearCookie(SID);
   }
 
-  @Get('me/notifications')
+  @Post('me/notifications')
   handleNotificationPreferences(
     @CurrentUser() user: User,
     @Query() query: ParseUserNotificationsQueryDto,
@@ -164,7 +165,7 @@ export class UsersController {
     return this.usersService.handleNotificationPreferences(query, user);
   }
 
-  @Post('me/bank-details')
+  @Put('me/bank-details')
   addBankDetails(
     @CurrentUser() user: User,
     @Body() bankDetailsDto: BankDetailsDto,
@@ -173,7 +174,7 @@ export class UsersController {
   }
 
   @HttpCode(HttpStatus.OK)
-  @Post('me/bank-details/default')
+  @Patch('me/bank-details/default')
   updateDefaultBankDetails(@CurrentUser() user: User, @Body() idDto: IdDto) {
     return this.usersService.updateDefaultBankDetails(idDto, user);
   }
@@ -194,7 +195,7 @@ export class UsersController {
   @Patch('me/bank-details/:id')
   updateBankDetail(
     @Param('id') id: string,
-    updateBankDetailDto: UpdateBankDetailDto,
+    @Body() updateBankDetailDto: UpdateBankDetailDto,
     @CurrentUser('id') userId: string,
   ) {
     return this.usersService.updateBankDetail(id, updateBankDetailDto, userId);

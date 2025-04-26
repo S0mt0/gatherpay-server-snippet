@@ -257,7 +257,7 @@ export class UsersService {
       );
 
       // Set as default if first bank detail
-      if (count === 0) {
+      if (count === 0 || !user.bankDetailId) {
         await user.update({ bankDetailId: bank_detail.id }, { transaction });
       }
 
@@ -292,10 +292,13 @@ export class UsersService {
   }
 
   async updateBankDetail(id: string, dto: UpdateBankDetailDto, userId: string) {
-    const bank_detail = await this.bankDetailModel.update(dto, {
+    const bank_detail = await this.bankDetailModel.findOne({
       where: { id, userId },
-      returning: true,
     });
+
+    if (!bank_detail) throw new NotFoundException('Bank detail not found');
+
+    await bank_detail.update(dto);
 
     return { bank_detail };
   }
@@ -303,17 +306,37 @@ export class UsersService {
   async removeBankDetails(id: string, user: User) {
     const transaction = await user.sequelize.transaction();
     try {
+      // 1. Find and verify the bank detail belongs to user
       const bankDetail = await this.bankDetailModel.findOne({
         where: { id, userId: user.id },
         transaction,
       });
 
-      if (!bankDetail) throw new NotFoundException('Bank detail not found');
+      if (!bankDetail) {
+        throw new NotFoundException('Bank detail not found');
+      }
 
+      // 2. Check if this is the current default bank detail
+      const isDefault = user.bankDetailId === id;
+
+      // 3. Delete the bank detail
       await bankDetail.destroy({ transaction });
 
-      if (user.bankDetailId === id)
-        await user.update({ bankDetailId: null }, { transaction });
+      // 4. Handle default bank detail reassignment if needed
+      if (isDefault) {
+        // Get remaining bank details (excluding the one being deleted)
+        const remainingDetails = await this.bankDetailModel.findAll({
+          where: { userId: user.id },
+          transaction,
+          order: [['createdAt', 'ASC']],
+          limit: 1,
+        });
+
+        const newDefaultId =
+          remainingDetails.length > 0 ? remainingDetails[0].id : null;
+
+        await user.update({ bankDetailId: newDefaultId }, { transaction });
+      }
 
       await transaction.commit();
     } catch (error) {

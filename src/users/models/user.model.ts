@@ -5,11 +5,11 @@ import {
   DataType,
   HasMany,
   ForeignKey,
-  BelongsTo,
   BeforeSave,
   HasOne,
   BelongsToMany,
   BeforeValidate,
+  BelongsTo,
 } from 'sequelize-typescript';
 import * as argon from 'argon2';
 import { BadRequestException } from '@nestjs/common';
@@ -145,19 +145,19 @@ export class User extends Model<User> {
 
   @Column({
     type: DataType.BOOLEAN,
-    defaultValue: false,
+    defaultValue: true,
   })
   getPaymentReminders: boolean;
 
   @Column({
     type: DataType.BOOLEAN,
-    defaultValue: false,
+    defaultValue: true,
   })
   getGroupUpdates: boolean;
 
   @Column({
     type: DataType.BOOLEAN,
-    defaultValue: false,
+    defaultValue: true,
   })
   getAnnouncements: boolean;
 
