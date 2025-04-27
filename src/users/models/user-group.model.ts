@@ -16,14 +16,14 @@ export class UserGroup extends Model<UserGroup> {
     type: DataType.UUID,
     allowNull: false,
   })
-  userId: number;
+  userId: string;
 
   @ForeignKey(() => Group)
   @Column({
     type: DataType.UUID,
     allowNull: false,
   })
-  groupId: number;
+  groupId: string;
 
   @Column({
     type: DataType.DATE,

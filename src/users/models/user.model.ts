@@ -25,7 +25,12 @@ import { BankDetail } from './bank-detail.model';
 
 export const USERS_TABLE = 'users';
 
-@Table({ tableName: USERS_TABLE, timestamps: true, createdAt: 'joinedAt' })
+@Table({
+  tableName: USERS_TABLE,
+  timestamps: true,
+  createdAt: 'joinedAt',
+  paranoid: true,
+})
 export class User extends Model<User> {
   @Column({
     type: DataType.UUID,

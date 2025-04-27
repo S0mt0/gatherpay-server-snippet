@@ -66,7 +66,7 @@ export class AuthController {
       deviceInfo,
     );
 
-    if (loginResponse?.message && loginResponse?.TFASID) {
+    if (loginResponse?.is2FARequired && loginResponse?.TFASID) {
       res.cookie(TFASID, loginResponse.TFASID, {
         httpOnly: true,
         secure: true,
@@ -74,7 +74,7 @@ export class AuthController {
         maxAge: TFASID_TTL,
       });
 
-      return loginResponse.message;
+      return { is2FARequired: true };
     } else {
       const { refresh_token, ...data } = loginResponse;
 
@@ -216,7 +216,7 @@ export class AuthController {
       deviceInfo,
     );
 
-    if (loginResponse?.message && loginResponse?.TFASID) {
+    if (loginResponse?.is2FARequired && loginResponse?.TFASID) {
       res.cookie(TFASID, loginResponse.TFASID, {
         httpOnly: true,
         secure: true,
@@ -224,7 +224,7 @@ export class AuthController {
         maxAge: TFASID_TTL,
       });
 
-      return loginResponse.message;
+      return { is2FARequired: true };
     } else {
       const { refresh_token, ...data } = loginResponse;
 
