@@ -88,6 +88,7 @@ export class AuthController {
       return data;
     }
   }
+
   /**
    * Sign-up / create new account
    *

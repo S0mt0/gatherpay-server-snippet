@@ -5,12 +5,20 @@ import {
   DataType,
   ForeignKey,
   BelongsTo,
+  DefaultScope,
 } from 'sequelize-typescript';
 
 import { User } from '../../models/user.model';
 
 export const SESSIONS_TABLE = 'sessions';
 
+@DefaultScope(() => ({
+  include: [
+    {
+      model: User.scope('limited'),
+    },
+  ],
+}))
 @Table({ tableName: SESSIONS_TABLE })
 export class Session extends Model<Session> {
   @Column({

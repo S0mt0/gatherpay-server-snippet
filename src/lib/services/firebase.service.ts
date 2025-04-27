@@ -49,7 +49,6 @@ export class FirebaseService implements OnModuleInit {
 
     let oauthUser = await this.userModel.findOne({
       where: { email },
-      include: ['defaultBankDetail', 'allBankDetails', 'groups'],
     });
 
     const provider = sign_in_provider as AllowedProviders;

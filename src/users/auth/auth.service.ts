@@ -291,7 +291,7 @@ export class AuthService {
   }
 
   async login(dto: LoginUserDto, deviceInfo: IDeviceInfo) {
-    const user = await this.findUserWithRelations({
+    const user = await this.userModel.findOne({
       where: { phoneNumber: dto.phoneNumber, provider: 'credentials' },
     });
 

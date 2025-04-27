@@ -11,6 +11,8 @@ import {
   BeforeValidate,
   BelongsTo,
   BeforeUpdate,
+  DefaultScope,
+  Scopes,
 } from 'sequelize-typescript';
 import * as argon from 'argon2';
 import { UnprocessableEntityException } from '@nestjs/common';
@@ -25,6 +27,21 @@ import { BankDetail } from './bank-detail.model';
 
 export const USERS_TABLE = 'users';
 
+@DefaultScope(() => ({
+  include: [
+    {
+      model: BankDetail,
+      as: 'defaultBankDetail',
+      attributes: { exclude: ['userId'] },
+    },
+  ],
+}))
+@Scopes(() => ({
+  limited: {
+    attributes: ['id', 'provider', 'username'],
+    include: [],
+  },
+}))
 @Table({
   tableName: USERS_TABLE,
   timestamps: true,
@@ -250,6 +267,7 @@ export class User extends Model<User> {
     delete user.bankDetailId;
     delete user.updatedAt;
     delete user.sessionId;
+    delete user.deletedAt;
 
     return user;
   }
