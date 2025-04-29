@@ -32,14 +32,13 @@ export const USERS_TABLE = 'users';
     {
       model: BankDetail,
       as: 'defaultBankDetail',
-      attributes: { exclude: ['userId'] },
+      attributes: { exclude: ['id', 'userId'] },
     },
   ],
 }))
 @Scopes(() => ({
   limited: {
     attributes: ['id', 'provider', 'username'],
-    include: [],
   },
 }))
 @Table({
@@ -97,6 +96,12 @@ export class User extends Model<User> {
     allowNull: true,
   })
   country: string;
+
+  @Column({
+    type: DataType.STRING,
+    allowNull: true,
+  })
+  defaultCurrency: string;
 
   @Column({
     type: DataType.STRING(200),

@@ -12,6 +12,8 @@ import {
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import * as speakeasy from 'speakeasy';
+import { parsePhoneNumberFromString } from 'libphonenumber-js';
+import { getCountryData, type TCountryCode } from 'countries-list';
 
 import {
   JWT_REFRESH_TOKEN_EXP,
@@ -140,10 +142,20 @@ export class AuthService {
         'Error sending verification code, try again.',
       );
 
-    const session = encrypt(dto.phoneNumber);
+    const parsedPhoneNumber = parsePhoneNumberFromString(dto.phoneNumber);
+    const countryCode = parsedPhoneNumber.country as TCountryCode;
+
+    const { name: countryName, currency } = getCountryData(countryCode);
+
+    dto = {
+      ...dto,
+      country: dto.country || countryName,
+      defaultCurrency: currency[0],
+    } as CreateUserDto;
 
     await this.cache.set(SIGN_UP_SESSION(dto.phoneNumber), dto, SID_TTL);
 
+    const session = encrypt(dto.phoneNumber);
     return session;
   }
 

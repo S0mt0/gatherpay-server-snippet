@@ -5,12 +5,18 @@ import {
   DataType,
   ForeignKey,
   BelongsTo,
+  DefaultScope,
 } from 'sequelize-typescript';
 
 import { User } from './user.model';
 
 export const BANK_DETAILS_TABLE = 'bank_details';
 
+@DefaultScope(() => ({
+  include: {
+    model: User.scope('limited'),
+  },
+}))
 @Table({
   tableName: BANK_DETAILS_TABLE,
   indexes: [

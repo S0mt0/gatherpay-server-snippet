@@ -53,8 +53,6 @@ export class FirebaseService implements OnModuleInit {
 
     const provider = sign_in_provider as AllowedProviders;
 
-    console.log({ provider });
-
     if (oauthUser) {
       if (provider !== oauthUser.provider)
         throw new ForbiddenException(
@@ -86,5 +84,13 @@ export class FirebaseService implements OnModuleInit {
     }
 
     return oauthUser;
+  }
+
+  async sendPushNotification(toFcmToken: string, title: string, body: string) {
+    const message = {
+      notification: { title, body },
+      token: toFcmToken,
+    };
+    await admin.messaging().send(message);
   }
 }
