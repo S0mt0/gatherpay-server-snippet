@@ -83,3 +83,23 @@ export const PROFILE_IMGS_COLLECTIONS_LIST = [
   'adventurer-neutral',
   'fun-emoji',
 ];
+
+export const BACKGROUND_IMGS_COLLECTIONS_LIST = ['identicons', 'shapes'];
+
+export const BACKGROUND_IMGS_NAME_LIST = [
+  'Sara',
+  'Caleb',
+  'Aiden',
+  'Liliana',
+  'Ryker',
+  'Ryan',
+  'Destiny',
+  'Sarah',
+  'Eden',
+  'Sawyer',
+  'Sadie',
+  'Liam',
+  'Caleb',
+  'Emery',
+  'Jameson',
+];

@@ -88,8 +88,6 @@ export class AuthService {
       })
     )[0];
 
-    await user.update({ sessionId: session.id });
-
     // Check if 2FA is enabled for user
     if (session.twoFactorEnabled && session.twoFactorSecret) {
       await this.cache.set(USER_2FA(user.id), user, TFASID_TTL);
@@ -234,7 +232,7 @@ export class AuthService {
 
       const encrypted_refresh_token = encrypt(refresh_token);
 
-      const session = await this.sessionModel.create(
+      await this.sessionModel.create(
         {
           userId: user.id,
           refresh_token: encrypted_refresh_token,
@@ -245,8 +243,6 @@ export class AuthService {
         },
         { transaction },
       );
-
-      await user.update({ sessionId: session.id }, { transaction });
 
       await transaction.commit();
       await this.cache.delete(SIGN_UP_SESSION(signUpSession.phoneNumber));

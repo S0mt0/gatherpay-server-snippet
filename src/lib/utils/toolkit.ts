@@ -3,6 +3,8 @@ import { Request } from 'express';
 import * as crypto from 'crypto-js';
 
 import {
+  BACKGROUND_IMGS_COLLECTIONS_LIST,
+  BACKGROUND_IMGS_NAME_LIST,
   JWT_ACCESS_TOKEN_SECRET,
   PROFILE_IMGS_COLLECTIONS_LIST,
   PROFILE_IMGS_NAME_LIST,
@@ -14,7 +16,10 @@ const config = new ConfigService();
 
 /** Randomly generates image urls on https://api.dicebear.com */
 export const getRandomAvatarUrl = () =>
-  `https://api.dicebear.com/6.x/${PROFILE_IMGS_COLLECTIONS_LIST[Math.floor(Math.random() * PROFILE_IMGS_COLLECTIONS_LIST?.length)]}/svg?seed=${PROFILE_IMGS_NAME_LIST[Math.floor(Math.random() * PROFILE_IMGS_NAME_LIST.length)]}`;
+  `https://api.dicebear.com/6.x/${PROFILE_IMGS_COLLECTIONS_LIST[Math.floor(Math.random() * PROFILE_IMGS_COLLECTIONS_LIST.length)]}/svg?seed=${PROFILE_IMGS_NAME_LIST[Math.floor(Math.random() * PROFILE_IMGS_NAME_LIST.length)]}`;
+
+export const getRandomBackgroundImgUrl = () =>
+  `https://api.dicebear.com/6.x/${BACKGROUND_IMGS_COLLECTIONS_LIST[Math.floor(Math.random() * BACKGROUND_IMGS_COLLECTIONS_LIST.length)]}/svg?seed=${BACKGROUND_IMGS_NAME_LIST[Math.floor(Math.random() * BACKGROUND_IMGS_NAME_LIST.length)]}`;
 
 /**
  * Multiplies all the number arguments and returns their product
@@ -138,3 +143,10 @@ export const getExampleResponseObject = ({
     timestamp: '2025-04-14T13:47:23.456Z',
   };
 };
+
+export function shuffleArray<T>(array: T[]): T[] {
+  return array
+    .map((value) => ({ value, sort: Math.random() }))
+    .sort((a, b) => a.sort - b.sort)
+    .map(({ value }) => value);
+}

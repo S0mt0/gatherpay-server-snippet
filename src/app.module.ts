@@ -12,7 +12,6 @@ import {
 import { ResponseInterceptor } from './lib/interceptors';
 import { UsersModule } from './users/users.module';
 import { GroupsModule } from './groups/groups.module';
-import { ChatsModule } from './chats/chats.module';
 import {
   DatabaseModule,
   AppConfigModule,
@@ -20,6 +19,8 @@ import {
 } from './lib/services';
 import { DeviceInfoMiddleware } from './lib/middlewares';
 import { AuthController } from './users/auth/auth.controller';
+import { MessagesModule } from './messages/messages.module';
+import { NotificationsModule } from './notifications/notifications.module';
 
 @Module({
   imports: [
@@ -47,7 +48,8 @@ import { AuthController } from './users/auth/auth.controller';
 
     UsersModule,
     GroupsModule,
-    ChatsModule,
+    MessagesModule,
+    NotificationsModule,
   ],
 
   providers: [

@@ -5,18 +5,12 @@ import {
   DataType,
   ForeignKey,
   BelongsTo,
-  DefaultScope,
 } from 'sequelize-typescript';
 
 import { User } from './user.model';
 
 export const BANK_DETAILS_TABLE = 'bank_details';
 
-@DefaultScope(() => ({
-  include: {
-    model: User.scope('limited'),
-  },
-}))
 @Table({
   tableName: BANK_DETAILS_TABLE,
   indexes: [
@@ -24,6 +18,11 @@ export const BANK_DETAILS_TABLE = 'bank_details';
       name: 'unique_bankName_accountNumber_combo',
       unique: true,
       fields: ['bankName', 'accountNumber'],
+    },
+    {
+      name: 'unique_accountNumber_bankSortCode_combo',
+      unique: true,
+      fields: ['bankSortCode', 'accountNumber'],
     },
   ],
 })
@@ -56,13 +55,19 @@ export class BankDetail extends Model<BankDetail> {
 
   @Column({
     type: DataType.STRING,
+    allowNull: false,
+  })
+  defaultCurrency: string;
+
+  @Column({
+    type: DataType.STRING,
     allowNull: true,
   })
   bankSortCode: string;
 
   @ForeignKey(() => User)
   @Column({
-    type: DataType.UUID,
+    type: DataType.STRING,
     allowNull: false,
   })
   userId: string;

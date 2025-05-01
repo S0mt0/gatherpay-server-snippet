@@ -1,6 +1,7 @@
 import {
   CanActivate,
   ExecutionContext,
+  ForbiddenException,
   Injectable,
   UnauthorizedException,
 } from '@nestjs/common';
@@ -11,7 +12,6 @@ import { InjectModel } from '@nestjs/sequelize';
 
 import { PUBLIC_KEY } from '../decorators';
 import { extractBearerToken } from '../utils';
-import { Session } from 'src/users/auth/models';
 import { User } from 'src/users/models';
 import { REFRESH_TOKEN } from '../constants';
 
@@ -21,7 +21,6 @@ export class AuthenticationGuard implements CanActivate {
     private reflector: Reflector,
     private jwtService: JwtService,
     @InjectModel(User) private userModel: typeof User,
-    @InjectModel(Session) private sessionModel: typeof Session,
   ) {}
   async canActivate(context: ExecutionContext) {
     const isPublic = this.reflector.get<boolean>(
@@ -72,16 +71,18 @@ export class AuthenticationGuard implements CanActivate {
 
     const user = await this.userModel.findOne({
       where: { id: decoded.sub },
+      include: 'session',
     });
 
-    const session = await this.sessionModel.findOne({
-      where: { userId: decoded.sub },
-    });
+    const session = user.get('session');
 
     if (!user || !session)
       throw new UnauthorizedException(
         'Hey champ! Your session has expired, please log in again.',
       );
+
+    if (user.provider === 'credentials' && !user.phone_verified)
+      throw new ForbiddenException('Please verify your account to continue');
 
     request['user'] = user;
     request['authSession'] = session;
