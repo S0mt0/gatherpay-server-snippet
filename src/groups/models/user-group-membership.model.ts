@@ -5,6 +5,7 @@ import {
   ForeignKey,
   DataType,
   BelongsTo,
+  DefaultScope,
 } from 'sequelize-typescript';
 
 import { Group } from 'src/groups/models/group.model';
@@ -13,14 +14,14 @@ import { User } from 'src/users/models';
 
 export const USER_GROUP_TABLE = 'user_group_memberships';
 
+@DefaultScope(() => ({
+  include: {
+    model: User.scope('profile'),
+  },
+}))
 @Table({
   tableName: USER_GROUP_TABLE,
   timestamps: true,
-  defaultScope: {
-    include: {
-      model: User.scope('profile'),
-    },
-  },
 })
 export class UserGroupMembership extends Model<UserGroupMembership> {
   @Column({

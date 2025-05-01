@@ -30,10 +30,9 @@ export class BankDetail extends Model<BankDetail> {
   @Column({
     type: DataType.UUID,
     primaryKey: true,
-    unique: true,
     defaultValue: DataType.UUIDV4,
   })
-  readonly id!: string;
+  id!: string;
 
   @Column({
     type: DataType.STRING,
@@ -67,7 +66,7 @@ export class BankDetail extends Model<BankDetail> {
 
   @ForeignKey(() => User)
   @Column({
-    type: DataType.STRING,
+    type: DataType.UUID,
     allowNull: false,
   })
   userId: string;

@@ -7,6 +7,7 @@ import {
   BelongsTo,
   BelongsToMany,
   HasMany,
+  DefaultScope,
 } from 'sequelize-typescript';
 
 import { User } from 'src/users/models/user.model';
@@ -24,29 +25,25 @@ import { Message } from 'src/messages/models';
 
 export const GROUPS_TABLE = 'groups';
 
-@Table({
-  tableName: GROUPS_TABLE,
-  timestamps: true,
-  defaultScope: {
-    include: [
-      {
-        model: User.scope('limited'),
-        as: 'members',
+@DefaultScope(() => ({
+  include: [
+    {
+      model: User.scope('limited'),
+      as: 'members',
+    },
+    {
+      model: Message,
+      attributes: {
+        exclude: ['groupId', 'id', 'receiverId'],
       },
-      {
-        model: Message,
-        attributes: {
-          exclude: ['groupId', 'id', 'receiverId'],
-        },
-      },
-    ],
-  },
-})
+    },
+  ],
+}))
+@Table({ tableName: GROUPS_TABLE, timestamps: true })
 export class Group extends Model<Group> {
   @Column({
     type: DataType.UUID,
     primaryKey: true,
-    unique: true,
     defaultValue: DataType.UUIDV4,
   })
   id!: string;
@@ -72,7 +69,7 @@ export class Group extends Model<Group> {
 
   @ForeignKey(() => User) // Note to self:  Foreign key is actually pointing to user's primary key
   @Column({
-    type: DataType.STRING,
+    type: DataType.UUID,
     allowNull: false,
   })
   ownerId: number; // This field might be used to directly fetch all groups created/owned by a user

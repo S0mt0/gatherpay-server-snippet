@@ -4,6 +4,7 @@ import {
   BelongsTo,
   Column,
   DataType,
+  DefaultScope,
   ForeignKey,
   Model,
   Table,
@@ -13,15 +14,15 @@ import { User } from 'src/users/models';
 
 export const MESSAGES_TABLE = 'messages';
 
+@DefaultScope(() => ({
+  include: {
+    model: User.scope('limited'),
+  },
+}))
 @Table({
   tableName: MESSAGES_TABLE,
   timestamps: true,
   createdAt: 'timestamp',
-  defaultScope: {
-    include: {
-      model: User.scope('limited'),
-    },
-  },
 })
 export class Message extends Model<Message> {
   @Column({
@@ -35,7 +36,7 @@ export class Message extends Model<Message> {
 
   @ForeignKey(() => Group)
   @Column({
-    type: DataType.STRING,
+    type: DataType.UUID,
     allowNull: true,
   })
   groupId: string;
@@ -43,9 +44,9 @@ export class Message extends Model<Message> {
   @BelongsTo(() => Group)
   group: Group;
 
-  @ForeignKey(() => Group)
+  @ForeignKey(() => User)
   @Column({
-    type: DataType.STRING,
+    type: DataType.UUID,
     allowNull: false,
   })
   senderId: string;

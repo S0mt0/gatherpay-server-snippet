@@ -217,7 +217,7 @@ export class User extends Model<User> {
 
   @ForeignKey(() => BankDetail)
   @Column({
-    type: DataType.STRING,
+    type: DataType.UUID,
     allowNull: true,
   })
   bankDetailId: string;
@@ -225,7 +225,7 @@ export class User extends Model<User> {
   @BelongsTo(() => BankDetail, { foreignKey: 'bankDetailId' })
   defaultBankDetail: BankDetail;
 
-  @HasMany(() => BankDetail)
+  @HasMany(() => BankDetail, { foreignKey: 'userId' })
   allBankDetails: BankDetail[];
 
   @BelongsToMany(() => Group, () => UserGroupMembership)
