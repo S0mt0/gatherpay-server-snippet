@@ -62,10 +62,9 @@ export class User extends Model<User> {
   @Column({
     type: DataType.UUID,
     primaryKey: true,
-    unique: true,
     defaultValue: DataType.UUIDV4,
   })
-  readonly id!: string;
+  id: string;
 
   @Column({
     type: DataType.STRING,
@@ -210,6 +209,12 @@ export class User extends Model<User> {
 
   @Column({
     type: DataType.BOOLEAN,
+    defaultValue: false,
+  })
+  autoAcceptGroupInvite: boolean;
+
+  @Column({
+    type: DataType.BOOLEAN,
     allowNull: true,
   })
   /** Firebase Cloud Messaging token for offline push notifications */
@@ -227,6 +232,9 @@ export class User extends Model<User> {
 
   @HasMany(() => BankDetail, { foreignKey: 'userId' })
   allBankDetails: BankDetail[];
+
+  @HasMany(() => Group, { foreignKey: 'ownerId' })
+  ownedGroups: Group[];
 
   @BelongsToMany(() => Group, () => UserGroupMembership)
   memberGroups: Group[];

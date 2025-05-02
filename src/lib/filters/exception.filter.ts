@@ -16,7 +16,6 @@ import {
 type TAppErrorResponse = {
   statusCode: number;
   message: string | object;
-  timestamp: string;
 };
 
 @Catch()
@@ -33,7 +32,6 @@ export class AllExceptionsFilter extends BaseExceptionFilter {
           : exception?.status === HttpStatus.REQUEST_TIMEOUT
             ? 'Request timed out. Try again'
             : exception?.message || 'Something unexpected happened',
-      timestamp: new Date().toISOString(),
     };
 
     if (exception instanceof HttpException) {

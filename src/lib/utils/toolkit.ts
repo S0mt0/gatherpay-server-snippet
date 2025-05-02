@@ -122,28 +122,6 @@ export const decrypt = (
   }
 };
 
-export const getExampleResponseObject = ({
-  statusCode = 200,
-  data = {},
-}: {
-  statusCode?: number;
-  data?: object;
-}) => {
-  if ((Array.isArray(data) && data.length) || Object.keys(data).length)
-    return {
-      statusCode,
-      message: 'Success',
-      data,
-      timestamp: '2025-04-14T13:47:23.456Z',
-    };
-
-  return {
-    statusCode,
-    message: 'Success',
-    timestamp: '2025-04-14T13:47:23.456Z',
-  };
-};
-
 export function shuffleArray<T>(array: T[]): T[] {
   return array
     .map((value) => ({ value, sort: Math.random() }))

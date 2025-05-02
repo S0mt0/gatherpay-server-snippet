@@ -103,3 +103,9 @@ export const BACKGROUND_IMGS_NAME_LIST = [
   'Emery',
   'Jameson',
 ];
+
+export const EXAMPLE_RESPONSE_OBJ = {
+  statusCode: 200,
+  message: 'Success',
+  data: {},
+};

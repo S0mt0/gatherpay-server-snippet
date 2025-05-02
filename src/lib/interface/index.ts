@@ -133,3 +133,16 @@ export interface TGroupCustomFrequency {
 }
 
 export type TGroupMembershipStatus = 'pending' | 'active' | 'suspended';
+
+export type TGroupCycleStatus = 'pending' | 'completed' | 'delayed';
+
+export type TGroupUserContributionStatus =
+  | 'paid'
+  | 'not_paid'
+  | 'not_confirmed'
+  | 'defaulted';
+
+export type TGroupUserDefaultReason =
+  | 'missed_contribution'
+  | 'delayed_contribution'
+  | 'disappeared_after_payout';

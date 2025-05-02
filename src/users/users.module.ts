@@ -3,7 +3,7 @@ import { SequelizeModule } from '@nestjs/sequelize';
 
 import { UsersService } from './users.service';
 import { UsersController } from './users.controller';
-import { BankDetail, User } from './models';
+import { BankDetail, User, UserDefaultRecord } from './models';
 import {
   CloudinaryService,
   FirebaseService,
@@ -13,7 +13,9 @@ import { AuthController, AuthService } from './auth';
 import { Session } from './auth/models';
 
 @Module({
-  imports: [SequelizeModule.forFeature([User, Session, BankDetail])],
+  imports: [
+    SequelizeModule.forFeature([User, Session, BankDetail, UserDefaultRecord]),
+  ],
   controllers: [AuthController, UsersController],
   providers: [
     AuthService,

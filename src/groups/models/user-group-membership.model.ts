@@ -26,8 +26,6 @@ export const USER_GROUP_TABLE = 'user_group_memberships';
 export class UserGroupMembership extends Model<UserGroupMembership> {
   @Column({
     type: DataType.UUID,
-    allowNull: false,
-    unique: true,
     primaryKey: true,
     defaultValue: DataType.UUIDV4,
   })

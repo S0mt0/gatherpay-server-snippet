@@ -1,4 +1,9 @@
-import { ForbiddenException, Injectable, OnModuleInit } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+  OnModuleInit,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectModel } from '@nestjs/sequelize';
 import * as admin from 'firebase-admin';
@@ -63,7 +68,7 @@ export class FirebaseService implements OnModuleInit {
     } else {
       // If user doesn't already exist, then create a new user
       if (!SUPPORTED_PROVIDERS.includes(provider))
-        throw new ForbiddenException(
+        throw new BadRequestException(
           'Please register using either of google, facebook, apple or your credentials (phone number and password)',
         );
 

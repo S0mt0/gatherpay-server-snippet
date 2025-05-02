@@ -30,20 +30,17 @@ export class ResponseInterceptor implements NestInterceptor {
           return {
             statusCode: res.statusCode,
             message,
-            timestamp: new Date().toISOString(),
           };
         } else if (typeof data === 'string' && data.trim().length) {
           return {
             statusCode: res.statusCode,
             message: data,
-            timestamp: new Date().toISOString(),
           };
         } else {
           return {
             statusCode: res.statusCode,
             message,
             data,
-            timestamp: new Date().toISOString(),
           };
         }
       }),
