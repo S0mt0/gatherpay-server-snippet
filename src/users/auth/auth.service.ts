@@ -20,16 +20,18 @@ import {
   JWT_REFRESH_TOKEN_EXP,
   JWT_REFRESH_TOKEN_SECRET,
   TIME_IN,
-  SIGN_UP_SESSION,
-  PASSWORD_SESSION,
   APP_NAME,
-  USER_2FA,
   SID_TTL,
   TFASID_TTL,
   REFRESH_TOKEN,
   TFASID,
   SID,
 } from 'src/lib/constants';
+import {
+  SIGN_UP_SESSION,
+  PASSWORD_SESSION,
+  USER_2FA,
+} from 'src/lib/services/cache/cache-keys';
 import { CacheService, FirebaseService } from 'src/lib/services';
 
 import { LoginUserDto, NewPasswordDto, CodeDto, OauthDto } from './dto';
@@ -357,7 +359,7 @@ export class AuthService {
     });
 
     // Check if 2FA is enabled for user
-    if (session.twoFactorEnabled && session.twoFactorSecret) {
+    if (session && session.twoFactorEnabled && session.twoFactorSecret) {
       await this.cache.set(USER_2FA(user.id), user, TFASID_TTL);
 
       res.cookie(TFASID, encrypt(user.id), {
@@ -379,13 +381,22 @@ export class AuthService {
 
     const encrypted_refresh_token = encrypt(refresh_token);
 
-    const currentDevices = session.loggedInDevices || [];
+    const currentDevices = session?.loggedInDevices || [];
     const deviceAlreadyExists = currentDevices.includes(deviceInfo.device);
     const updatedDevices = deviceAlreadyExists
       ? currentDevices
       : [...currentDevices, deviceInfo.device];
 
-    await session.update({
+    // await session.update({
+    //   refresh_token: encrypted_refresh_token,
+    //   lastLoggedIn: new Date(),
+    //   deviceIpAddress: deviceInfo.ip,
+    //   deviceLastLoggedIn: deviceInfo.device,
+    //   loggedInDevices: updatedDevices,
+    // });
+
+    await this.sessionModel.upsert({
+      userId: user.id,
       refresh_token: encrypted_refresh_token,
       lastLoggedIn: new Date(),
       deviceIpAddress: deviceInfo.ip,

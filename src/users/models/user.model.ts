@@ -41,15 +41,14 @@ export const USERS_TABLE = 'users';
     attributes: ['id', 'firstName', 'lastName', 'picture'],
   },
   profile: {
-    attributes: [
-      'id',
-      'firstName',
-      'lastName',
-      'username',
-      'picture',
-      'bio',
-      'defaultBankDetail',
+    include: [
+      {
+        model: BankDetail,
+        as: 'defaultBankDetail',
+        attributes: { exclude: ['id', 'userId'] },
+      },
     ],
+    attributes: ['firstName', 'lastName', 'username', 'picture', 'bio'],
   },
 }))
 @Table({

@@ -22,6 +22,13 @@ export const USER_GROUP_TABLE = 'user_group_memberships';
 @Table({
   tableName: USER_GROUP_TABLE,
   timestamps: true,
+  indexes: [
+    {
+      unique: true,
+      name: 'unique_group_payoutOrder_combo',
+      fields: ['id', 'payoutOrder'], // No two users in the same group should have the same payoutOrder. They each should receive payouts on different times
+    },
+  ],
 })
 export class UserGroupMembership extends Model<UserGroupMembership> {
   @Column({
@@ -46,7 +53,7 @@ export class UserGroupMembership extends Model<UserGroupMembership> {
     type: DataType.UUID,
     allowNull: false,
   })
-  userId: string;
+  memberId: string;
 
   @BelongsTo(() => User)
   user: User;
@@ -71,7 +78,7 @@ export class UserGroupMembership extends Model<UserGroupMembership> {
     type: DataType.INTEGER,
     allowNull: true,
   })
-  payoutOrder: number;
+  payoutOrder: number; // admin should get the last payout
 
   @Column({
     type: DataType.DATE,
@@ -85,6 +92,7 @@ export class UserGroupMembership extends Model<UserGroupMembership> {
     delete member.id;
     delete member.group;
     delete member.groupId;
+    delete member.memberId;
 
     return member;
   }

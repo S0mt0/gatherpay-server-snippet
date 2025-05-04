@@ -8,6 +8,7 @@ import {
   BelongsToMany,
   HasMany,
   DefaultScope,
+  HasOne,
 } from 'sequelize-typescript';
 
 import { User } from 'src/users/models/user.model';
@@ -30,6 +31,9 @@ export const GROUPS_TABLE = 'groups';
     {
       model: User.scope('limited'),
       as: 'members',
+      through: {
+        attributes: [],
+      },
     },
     {
       model: Message,
@@ -72,13 +76,16 @@ export class Group extends Model<Group> {
     type: DataType.UUID,
     allowNull: false,
   })
-  ownerId: number; // This field might be used to directly fetch all groups created/owned by a user
+  ownerId: string; // This field might be used to directly fetch all groups created/owned by a user
 
   @BelongsTo(() => User)
   owner: User;
 
   @BelongsToMany(() => User, () => UserGroupMembership)
   members: User[];
+
+  @HasOne(() => UserGroupMembership, { foreignKey: 'groupId' })
+  membership: UserGroupMembership;
 
   @Column({
     type: DataType.INTEGER,
@@ -87,7 +94,7 @@ export class Group extends Model<Group> {
   targetMemberCount: number;
 
   @Column({
-    type: DataType.INTEGER,
+    type: DataType.FLOAT,
     allowNull: false,
   })
   contributionAmount: number;
@@ -155,12 +162,6 @@ export class Group extends Model<Group> {
   payoutOrder: TGroupPayoutOrder;
 
   @Column({
-    type: DataType.FLOAT,
-    allowNull: false,
-  })
-  contributionGoal: number;
-
-  @Column({
     type: DataType.STRING,
     allowNull: true,
   })
@@ -168,15 +169,27 @@ export class Group extends Model<Group> {
 
   @Column({
     type: DataType.BOOLEAN,
-    allowNull: false,
+    defaultValue: false,
   })
   repeat: boolean;
 
   @Column({
     type: DataType.BOOLEAN,
-    allowNull: false,
+    defaultValue: false,
   })
   isPublic: boolean;
+
+  @Column({
+    type: DataType.DATE,
+    defaultValue: DataType.NOW,
+  })
+  createdAt: Date;
+
+  @Column({
+    type: DataType.DATE,
+    defaultValue: DataType.NOW,
+  })
+  updatedAt: Date;
 
   @HasMany(() => Message, { foreignKey: 'groupId' })
   messages: Message[];
@@ -187,6 +200,7 @@ export class Group extends Model<Group> {
     delete group.owner;
     delete group.ownerId;
     delete group.messages;
+    delete group.membership;
 
     return group;
   }

@@ -22,7 +22,7 @@ import { CacheService } from './cache.service';
           compression: new KeyvGzip(),
         });
 
-        return new Cacheable({ primary, secondary, ttl: TIME_IN.days[1] });
+        return new Cacheable({ primary, secondary, ttl: TIME_IN.days[7] });
       },
 
       inject: [ConfigService],

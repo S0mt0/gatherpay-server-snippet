@@ -1,3 +1,4 @@
+import { Model, ModelCtor } from 'sequelize-typescript';
 import { UnauthorizedException } from '@nestjs/common';
 import { Request } from 'express';
 import * as crypto from 'crypto-js';
@@ -9,7 +10,13 @@ import {
   PROFILE_IMGS_COLLECTIONS_LIST,
   PROFILE_IMGS_NAME_LIST,
 } from '../constants';
-import { Days, Hours, Minutes, TimeInMilliseconds } from '../interface';
+import {
+  Days,
+  Hours,
+  Minutes,
+  PaginateOptions,
+  TimeInMilliseconds,
+} from '../interface';
 import { ConfigService } from '@nestjs/config';
 
 const config = new ConfigService();
@@ -127,4 +134,56 @@ export function shuffleArray<T>(array: T[]): T[] {
     .map((value) => ({ value, sort: Math.random() }))
     .sort((a, b) => a.sort - b.sort)
     .map(({ value }) => value);
+}
+
+export async function paginate<T extends Model<any>>(
+  model: ModelCtor<T>,
+  {
+    page = 1,
+    limit = 10,
+    defaultLimit = 10,
+    maxLimit = 20,
+    options = {},
+  }: PaginateOptions,
+) {
+  const offset = (page - 1) * limit;
+  const cappedLimit = Math.min(limit || defaultLimit, maxLimit);
+
+  const { rows, count } = await model.findAndCountAll({
+    ...options,
+    limit: cappedLimit,
+    offset,
+    distinct: true,
+  });
+
+  return {
+    data: rows,
+    pagination: {
+      total: count,
+      page,
+      limit: cappedLimit,
+      totalPages: Math.ceil(count / cappedLimit),
+    },
+  };
+}
+
+export function generateCacheKeyFromQuery(prefix: string, query: any): string {
+  const sorted = JSON.stringify(sortObject(query));
+  const hash = crypto.MD5(sorted).toString();
+  return `${prefix}:${hash}`;
+}
+
+function sortObject(obj: any): any {
+  if (Array.isArray(obj)) return obj.map(sortObject);
+
+  if (obj !== null && typeof obj === 'object') {
+    return Object.keys(obj)
+      .sort()
+      .reduce((result: any, key) => {
+        result[key] = sortObject(obj[key]);
+        return result;
+      }, {});
+  }
+
+  return obj;
 }

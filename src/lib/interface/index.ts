@@ -1,3 +1,5 @@
+import { FindAndCountOptions } from 'sequelize';
+
 export type Minutes =
   | 1
   | 2
@@ -90,6 +92,14 @@ export type Days = 1 | 2 | 3 | 4 | 5 | 6 | 7;
 export type TimeInMilliseconds<T extends string | number | symbol> = {
   [key in T]: number;
 };
+
+export interface PaginateOptions {
+  page?: number;
+  limit?: number;
+  defaultLimit?: number;
+  maxLimit?: number;
+  options?: FindAndCountOptions;
+}
 
 export interface IDeviceInfo {
   ip: string;

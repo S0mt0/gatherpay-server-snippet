@@ -71,8 +71,13 @@ export class AuthenticationGuard implements CanActivate {
 
     const user = await this.userModel.findOne({
       where: { id: decoded.sub },
-      include: 'session',
+      include: ['session', 'memberGroups', 'ownedGroups'],
     });
+
+    // const user = await this.userModel.findOne({
+    //   where: { id: decoded.sub },
+    //   include: ['session', ],
+    // });
 
     const session = user.get('session');
 
@@ -83,6 +88,9 @@ export class AuthenticationGuard implements CanActivate {
 
     if (user.provider === 'credentials' && !user.phone_verified)
       throw new ForbiddenException('Please verify your account to continue');
+
+    console.log({ userMemberships: user.memberGroups.length });
+    console.log({ ownedGroups: user.ownedGroups.length });
 
     request['user'] = user;
     request['authSession'] = session;

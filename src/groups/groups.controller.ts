@@ -1,3 +1,4 @@
+import { ApiBearerAuth } from '@nestjs/swagger';
 import {
   Controller,
   Get,
@@ -6,12 +7,12 @@ import {
   Patch,
   Param,
   Delete,
+  Query,
 } from '@nestjs/common';
+
 import { GroupsService } from './groups.service';
-import { CreateGroupDto } from './dto/create-group.dto';
-import { UpdateGroupDto } from './dto/update-group.dto';
-import { Protect } from 'src/lib/decorators';
-import { ApiBearerAuth } from '@nestjs/swagger';
+import { CreateGroupDto, ParseGroupUrlQueryDto, UpdateGroupDto } from './dto';
+import { CurrentUser, Protect } from 'src/lib/decorators';
 
 @Protect()
 @ApiBearerAuth()
@@ -20,18 +21,24 @@ export class GroupsController {
   constructor(private readonly groupsService: GroupsService) {}
 
   @Post()
-  create(@Body() createGroupDto: CreateGroupDto) {
-    return this.groupsService.create(createGroupDto);
+  createGroup(
+    @Body() createGroupDto: CreateGroupDto,
+    @CurrentUser('id') userId: string,
+  ) {
+    return this.groupsService.createGroup(createGroupDto, userId);
   }
 
   @Get()
-  findAll() {
-    return this.groupsService.findAll();
+  findAllMyGroups(
+    @CurrentUser('id') userId: string,
+    @Query() query: ParseGroupUrlQueryDto,
+  ) {
+    return this.groupsService.findAllMyGroups(userId, query);
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.groupsService.findOne(+id);
+  findOne(@CurrentUser('id') userId: string, @Param('id') groupId: string) {
+    return this.groupsService.findOne(userId, groupId);
   }
 
   @Patch(':id')

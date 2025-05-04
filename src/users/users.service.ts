@@ -15,12 +15,11 @@ import { User } from './models/user.model';
 import { AuthService } from './auth';
 import { Session } from './auth/models';
 import { CacheService, TwilioService } from 'src/lib/services';
+import { SID_TTL, TFASID_TTL } from 'src/lib/constants';
 import {
-  SID_TTL,
-  SIGN_UP_SESSION,
-  TFASID_TTL,
+  PHONE_CHANGE_SESSION,
   USER_2FA,
-} from 'src/lib/constants';
+} from 'src/lib/services/cache/cache-keys';
 import { decrypt, encrypt } from 'src/lib/utils';
 import { CodeDto, UpdatePasswordDto } from './auth/dto';
 import {
@@ -155,14 +154,18 @@ export class UsersService {
 
     const session = encrypt(dto.phoneNumber);
 
-    await this.cacheService.set(SIGN_UP_SESSION(dto.phoneNumber), dto, SID_TTL);
+    await this.cacheService.set(
+      PHONE_CHANGE_SESSION(dto.phoneNumber),
+      dto,
+      SID_TTL,
+    );
 
     return session;
   }
   async verifyPhoneNumberChange(sessionId: string, dto: CodeDto, user: User) {
     const phoneChangeSession =
       await this.cacheService.get<UpdatePhoneNumberDto>(
-        SIGN_UP_SESSION(decrypt(sessionId)),
+        PHONE_CHANGE_SESSION(decrypt(sessionId)),
       );
 
     if (!phoneChangeSession) {

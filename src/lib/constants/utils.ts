@@ -24,7 +24,7 @@ export const REFRESH_TOKEN = 'refresh_token';
 export const TFASID = 'TFASID';
 
 /** Session Id's `ttl` (time to live) in milliseconds
- * @description Mostly influenced by Twilio verify's code `ttl`
+ * @description Mostly influenced by Twilio verify's code `ttl` - *10 minutes*
  * @constant
  */
 export const SID_TTL = TIME_IN.minutes[10];
