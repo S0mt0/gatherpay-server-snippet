@@ -5,7 +5,6 @@ import {
   ForeignKey,
   DataType,
   BelongsTo,
-  DefaultScope,
 } from 'sequelize-typescript';
 
 import { Group } from 'src/groups/models/group.model';
@@ -14,11 +13,6 @@ import { User } from 'src/users/models';
 
 export const USER_GROUP_TABLE = 'user_group_memberships';
 
-@DefaultScope(() => ({
-  include: {
-    model: User.scope('profile'),
-  },
-}))
 @Table({
   tableName: USER_GROUP_TABLE,
   timestamps: true,
@@ -66,7 +60,7 @@ export class UserGroupMembership extends Model<UserGroupMembership> {
   groupId: string;
 
   @BelongsTo(() => Group)
-  group: Group;
+  groupInfo: Group;
 
   @Column({
     type: DataType.ENUM<TGroupRole>('admin', 'member'),
@@ -90,9 +84,9 @@ export class UserGroupMembership extends Model<UserGroupMembership> {
     const member = super.toJSON();
 
     delete member.id;
-    delete member.group;
-    delete member.groupId;
     delete member.memberId;
+    delete member.createdAt;
+    delete member.updatedAt;
 
     return member;
   }

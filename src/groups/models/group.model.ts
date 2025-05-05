@@ -35,12 +35,6 @@ export const GROUPS_TABLE = 'groups';
         attributes: [],
       },
     },
-    {
-      model: Message,
-      attributes: {
-        exclude: ['groupId', 'id', 'receiverId'],
-      },
-    },
   ],
 }))
 @Table({ tableName: GROUPS_TABLE, timestamps: true })
@@ -55,6 +49,10 @@ export class Group extends Model<Group> {
   @Column({
     type: DataType.STRING,
     allowNull: false,
+    unique: {
+      name: 'name',
+      msg: "Oops! That name is so cool, but it's been taken😉.",
+    },
   })
   name: string;
 
@@ -85,7 +83,7 @@ export class Group extends Model<Group> {
   members: User[];
 
   @HasOne(() => UserGroupMembership, { foreignKey: 'groupId' })
-  membership: UserGroupMembership;
+  ownerMembership: UserGroupMembership;
 
   @Column({
     type: DataType.INTEGER,
@@ -179,18 +177,6 @@ export class Group extends Model<Group> {
   })
   isPublic: boolean;
 
-  @Column({
-    type: DataType.DATE,
-    defaultValue: DataType.NOW,
-  })
-  createdAt: Date;
-
-  @Column({
-    type: DataType.DATE,
-    defaultValue: DataType.NOW,
-  })
-  updatedAt: Date;
-
   @HasMany(() => Message, { foreignKey: 'groupId' })
   messages: Message[];
 
@@ -200,7 +186,7 @@ export class Group extends Model<Group> {
     delete group.owner;
     delete group.ownerId;
     delete group.messages;
-    delete group.membership;
+    delete group.ownerMembership;
 
     return group;
   }

@@ -1,12 +1,12 @@
 import { InjectModel } from '@nestjs/sequelize';
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { Op, Order } from 'sequelize';
 
-import { ParseGroupUrlQueryDto, UpdateGroupDto } from './dto';
+import { CreateGroupDto, ParseGroupUrlQueryDto, UpdateGroupDto } from './dto';
 import { Group, UserGroupMembership } from './models';
 import { CacheService } from 'src/lib/services';
 import { USER_GROUPS } from 'src/lib/services/cache/cache-keys';
 import { generateCacheKeyFromQuery, paginate } from 'src/lib/utils';
+import { User } from 'src/users/models';
 
 @Injectable()
 export class GroupsService {
@@ -17,7 +17,7 @@ export class GroupsService {
     private readonly cache: CacheService,
   ) {}
 
-  async createGroup(dto: any, userId: string) {
+  async createGroup(dto: CreateGroupDto, userId: string) {
     const transaction = await this.groupModel.sequelize.transaction();
 
     try {
@@ -47,33 +47,6 @@ export class GroupsService {
     }
   }
 
-  // async findAllMyGroups(userId: string) {
-  //   let all_groups = await this.cache.get<Group[]>(USER_GROUPS(userId)); // Check if user's groups is in cache storage
-
-  //   if (!all_groups) {
-  //     // If not in cache storage, then query database for the fresh data
-  //     all_groups = await this.groupModel.findAll({
-  //       where: {
-  //         [Op.or]: [{ ownerId: userId }],
-  //       },
-  //       include: [
-  //         {
-  //           model: UserGroupMembership,
-  //           where: { memberId: userId },
-  //           as: 'membership',
-  //           required: false,
-  //         },
-  //       ],
-  //       order: [['createdAt', 'DESC']],
-  //     }); // This fetches all groups that were created by the user as well as groups a user belongs to
-
-  //     // Save fresh data in cache storage for faster fetch in subsequent requests
-  //     await this.cache.set(USER_GROUPS(userId), all_groups);
-  //   }
-
-  //   return { all_groups };
-  // }
-
   async findAllMyGroups(userId: string, query: ParseGroupUrlQueryDto) {
     const cacheKey = generateCacheKeyFromQuery(USER_GROUPS(userId), query);
 
@@ -81,24 +54,16 @@ export class GroupsService {
 
     if (cached) return cached;
 
-    const { sort, fields, page, limit, name, payoutDay, status } = query;
+    const { role, page, limit } = query;
 
-    const where: any = {
-      [Op.or]: [{ ownerId: userId }],
+    const where: Record<string, string> = {
+      memberId: userId,
+      status: 'active',
     };
-
-    if (name !== undefined) where.name = { [Op.iLike]: `%${name}%` };
-    if (payoutDay !== undefined) where.payoutDay = payoutDay;
-    if (status !== undefined) where.status = status;
-
-    const order: Order = sort
-      ? [[sort.replace('-', ''), sort.startsWith('-') ? 'DESC' : 'ASC']]
-      : [['createdAt', 'DESC']];
-
-    const attributes = fields ? fields.split(',') : undefined;
+    if (role !== undefined) where.role = role;
 
     const { data: my_groups, pagination: metadata } = await paginate(
-      this.groupModel,
+      this.memberModel,
       {
         page,
         limit,
@@ -106,16 +71,21 @@ export class GroupsService {
           where,
           include: [
             {
-              model: UserGroupMembership,
-              where: { memberId: userId },
-              required: false,
+              model: this.groupModel,
+              as: 'groupInfo',
+              include: [
+                {
+                  model: User.scope('profile'),
+                  as: 'owner',
+                },
+              ],
             },
           ],
-          attributes,
-          order,
+          attributes: { exclude: ['payoutOrder', 'status'] },
+          order: [['memberSince', 'DESC']],
         },
       },
-    ); // This fetches all groups that were created by the user as well as groups a user belongs to
+    ); // Fetch all groups where the current user is a member
 
     // Save fresh data in cache storage for faster fetch in subsequent requests
     await this.cache.set(cacheKey, { my_groups, metadata });
