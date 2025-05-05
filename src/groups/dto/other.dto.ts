@@ -21,3 +21,8 @@ export class ParseGroupUrlQueryDto {
   @Transform(({ value }) => (value ? parseInt(value, 10) : 10))
   limit?: number = 10;
 }
+
+export class GroupNameSearchDto {
+  @IsString({ message: "'name' is required." })
+  name: string;
+}

@@ -136,20 +136,21 @@ export function shuffleArray<T>(array: T[]): T[] {
     .map(({ value }) => value);
 }
 
-export async function paginate<T extends Model<any>>(
+export async function paginate<T extends Model<T>>(
   model: ModelCtor<T>,
   {
     page = 1,
-    limit = 10,
+    limit,
     defaultLimit = 10,
     maxLimit = 20,
     options = {},
-  }: PaginateOptions,
+    scope,
+  }: PaginateOptions<T>,
 ) {
   const offset = (page - 1) * limit;
   const cappedLimit = Math.min(limit || defaultLimit, maxLimit);
 
-  const { rows, count } = await model.findAndCountAll({
+  const { rows, count } = await model.scope(scope).findAndCountAll({
     ...options,
     limit: cappedLimit,
     offset,

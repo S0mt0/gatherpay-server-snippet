@@ -93,12 +93,13 @@ export type TimeInMilliseconds<T extends string | number | symbol> = {
   [key in T]: number;
 };
 
-export interface PaginateOptions {
+export interface PaginateOptions<T = any> {
+  scope?: string;
   page?: number;
   limit?: number;
   defaultLimit?: number;
   maxLimit?: number;
-  options?: FindAndCountOptions;
+  options?: FindAndCountOptions<T>;
 }
 
 export interface IDeviceInfo {

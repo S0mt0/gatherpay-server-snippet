@@ -1,3 +1,3 @@
 export * from './create-group.dto';
 export * from './update-group.dto';
-export * from './group-url-query.dto';
+export * from './other.dto';

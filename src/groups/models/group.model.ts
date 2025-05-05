@@ -9,6 +9,7 @@ import {
   HasMany,
   DefaultScope,
   HasOne,
+  Scopes,
 } from 'sequelize-typescript';
 
 import { User } from 'src/users/models/user.model';
@@ -36,6 +37,21 @@ export const GROUPS_TABLE = 'groups';
       },
     },
   ],
+}))
+@Scopes(() => ({
+  public: {
+    include: { model: User.scope('limited'), as: 'owner' },
+    attributes: [
+      'id',
+      'name',
+      'picture',
+      'status',
+      'targetMemberCount',
+      'contributionAmount',
+      'defaultCurrency',
+      'createdAt',
+    ],
+  },
 }))
 @Table({ tableName: GROUPS_TABLE, timestamps: true })
 export class Group extends Model<Group> {
@@ -92,10 +108,28 @@ export class Group extends Model<Group> {
   targetMemberCount: number;
 
   @Column({
+    type: DataType.INTEGER,
+    allowNull: true,
+  })
+  openSlots: number;
+
+  @Column({
     type: DataType.FLOAT,
     allowNull: false,
   })
   contributionAmount: number;
+
+  @Column({
+    type: DataType.FLOAT,
+    allowNull: true,
+  })
+  defaultFee: number;
+
+  @Column({
+    type: DataType.ENUM('percentage', 'fiat'),
+    allowNull: true,
+  })
+  defaultFeeUnit: 'percentage' | 'fiat';
 
   @Column({
     type: DataType.ENUM<TGroupRole>('admin', 'member'),
@@ -161,7 +195,7 @@ export class Group extends Model<Group> {
 
   @Column({
     type: DataType.STRING,
-    allowNull: true,
+    allowNull: false,
   })
   defaultCurrency: string;
 
@@ -183,9 +217,7 @@ export class Group extends Model<Group> {
   toJSON() {
     const group = super.toJSON();
 
-    delete group.owner;
     delete group.ownerId;
-    delete group.messages;
     delete group.ownerMembership;
 
     return group;

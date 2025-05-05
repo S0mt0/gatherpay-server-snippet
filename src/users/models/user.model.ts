@@ -107,12 +107,6 @@ export class User extends Model<User> {
   country: string;
 
   @Column({
-    type: DataType.STRING,
-    allowNull: true,
-  })
-  defaultCurrency: string;
-
-  @Column({
     type: DataType.STRING(200),
     allowNull: true,
   })

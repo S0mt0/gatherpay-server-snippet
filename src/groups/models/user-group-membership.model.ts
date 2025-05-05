@@ -5,6 +5,7 @@ import {
   ForeignKey,
   DataType,
   BelongsTo,
+  Scopes,
 } from 'sequelize-typescript';
 
 import { Group } from 'src/groups/models/group.model';
@@ -13,6 +14,16 @@ import { User } from 'src/users/models';
 
 export const USER_GROUP_TABLE = 'user_group_memberships';
 
+@Scopes(() => ({
+  public: {
+    include: [
+      {
+        model: User.scope('profile'),
+      },
+    ],
+    attributes: ['status', 'role', 'memberSince', 'payoutOrder'],
+  },
+}))
 @Table({
   tableName: USER_GROUP_TABLE,
   timestamps: true,
@@ -72,7 +83,7 @@ export class UserGroupMembership extends Model<UserGroupMembership> {
     type: DataType.INTEGER,
     allowNull: true,
   })
-  payoutOrder: number; // admin should get the last payout
+  payoutOrder: number; // Note to self: Remember, admin should get the last payout.
 
   @Column({
     type: DataType.DATE,

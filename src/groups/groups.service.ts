@@ -1,7 +1,17 @@
 import { InjectModel } from '@nestjs/sequelize';
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
+import { Op } from 'sequelize';
 
-import { CreateGroupDto, ParseGroupUrlQueryDto, UpdateGroupDto } from './dto';
+import {
+  CreateGroupDto,
+  GroupNameSearchDto,
+  ParseGroupUrlQueryDto,
+  UpdateGroupDto,
+} from './dto';
 import { Group, UserGroupMembership } from './models';
 import { CacheService } from 'src/lib/services';
 import { USER_GROUPS } from 'src/lib/services/cache/cache-keys';
@@ -17,12 +27,23 @@ export class GroupsService {
     private readonly cache: CacheService,
   ) {}
 
-  async createGroup(dto: CreateGroupDto, userId: string) {
+  async createGroup(dto: CreateGroupDto, user: User) {
+    if (!dto.defaultCurrency && !user.defaultBankDetail)
+      throw new BadRequestException(
+        'Please setup your bank details or provide a default currency for this group transactions.',
+      );
+
     const transaction = await this.groupModel.sequelize.transaction();
 
     try {
       const group = await this.groupModel.create(
-        { ...dto, ownerId: userId },
+        {
+          ...dto,
+          ownerId: user.id,
+          openSlots: dto.targetMemberCount - 1,
+          defaultCurrency:
+            dto.defaultCurrency || user.defaultBankDetail.defaultCurrency,
+        },
         { transaction },
       );
 
@@ -30,7 +51,7 @@ export class GroupsService {
         {
           status: 'active',
           role: 'admin',
-          memberId: userId,
+          memberId: user.id,
           groupId: group.id,
           memberSince: new Date(),
           payoutOrder: group.targetMemberCount, // Admin should be the last to receive payout; this helps reduce fraud
@@ -91,6 +112,13 @@ export class GroupsService {
     await this.cache.set(cacheKey, { my_groups, metadata });
 
     return { my_groups, metadata };
+  }
+
+  async searchPublicGroups({ name }: GroupNameSearchDto) {
+    return await this.groupModel.scope('public').findAll({
+      where: { name: { [Op.iLike]: `%${name.trim()}%` }, isPublic: true },
+      limit: 20,
+    });
   }
 
   async findOne(userId: string, groupId: string) {

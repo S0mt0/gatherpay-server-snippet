@@ -11,8 +11,14 @@ import {
 } from '@nestjs/common';
 
 import { GroupsService } from './groups.service';
-import { CreateGroupDto, ParseGroupUrlQueryDto, UpdateGroupDto } from './dto';
+import {
+  CreateGroupDto,
+  GroupNameSearchDto,
+  ParseGroupUrlQueryDto,
+  UpdateGroupDto,
+} from './dto';
 import { CurrentUser, Protect } from 'src/lib/decorators';
+import { User } from 'src/users/models';
 
 @Protect()
 @ApiBearerAuth()
@@ -23,9 +29,9 @@ export class GroupsController {
   @Post()
   createGroup(
     @Body() createGroupDto: CreateGroupDto,
-    @CurrentUser('id') userId: string,
+    @CurrentUser() user: User,
   ) {
-    return this.groupsService.createGroup(createGroupDto, userId);
+    return this.groupsService.createGroup(createGroupDto, user);
   }
 
   @Get()
@@ -34,6 +40,11 @@ export class GroupsController {
     @Query() query: ParseGroupUrlQueryDto,
   ) {
     return this.groupsService.findAllMyGroups(userId, query);
+  }
+
+  @Get('/public/search')
+  searchPublicGroups(@Query() groupNameSearchDto: GroupNameSearchDto) {
+    return this.groupsService.searchPublicGroups(groupNameSearchDto);
   }
 
   @Get(':id')

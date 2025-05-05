@@ -250,7 +250,7 @@ export class AuthController {
   @Get('sign-out')
   logout(
     @Res({ passthrough: true }) res: Response,
-    @ParseSessionCookie(REFRESH_TOKEN) refresh_token: string,
+    @ParseSessionCookie(REFRESH_TOKEN) refresh_token: string, // todo: remove device from array of logged in devices
   ) {
     return this.authService.logout(refresh_token, res);
   }

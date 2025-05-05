@@ -13,9 +13,7 @@ import { CacheService } from './cache.service';
     {
       provide: CACHE_INSTANCE,
       useFactory: async (config: ConfigService) => {
-        const primary = createKeyv(
-          config.get(REDIS_CLOUD_URL, 'redis://127.0.0.1:6379'),
-        );
+        const primary = createKeyv(config.get(REDIS_CLOUD_URL));
 
         const secondary = new Keyv({
           store: new CacheableMemory({ lruSize: 10000 }),
