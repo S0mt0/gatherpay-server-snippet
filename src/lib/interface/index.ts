@@ -1,4 +1,4 @@
-export type TRoles = 'user' | 'admin' | 'x-admin';
+import { FindAndCountOptions } from 'sequelize';
 
 export type Minutes =
   | 1
@@ -93,6 +93,15 @@ export type TimeInMilliseconds<T extends string | number | symbol> = {
   [key in T]: number;
 };
 
+export interface PaginateOptions<T = any> {
+  scope?: string;
+  page?: number;
+  limit?: number;
+  defaultLimit?: number;
+  maxLimit?: number;
+  options?: FindAndCountOptions<T>;
+}
+
 export interface IDeviceInfo {
   ip: string;
   device: string;
@@ -104,3 +113,47 @@ export type AllowedProviders =
   | 'google.com'
   | 'facebook.com'
   | 'apple.com';
+
+export type TRole = 'x-admin' | 'user';
+
+export type TGroupRole = 'admin' | 'member';
+
+export type TGroupPayoutOrder = 'random' | 'first-come-first-serve';
+
+export type TGroupStatus = 'pending' | 'active' | 'completed' | 'cancelled';
+
+export type TGroupPayoutDay =
+  | 'sunday'
+  | 'monday'
+  | 'tuesday'
+  | 'wednesday'
+  | 'thursday'
+  | 'friday'
+  | 'saturday';
+
+export type TGroupFrequency =
+  | 'daily'
+  | 'weekly'
+  | 'bi-weekly'
+  | 'monthly'
+  | 'custom';
+
+export interface TGroupCustomFrequency {
+  step: number;
+  unit: 'days' | 'weeks' | 'months' | 'years';
+}
+
+export type TGroupMembershipStatus = 'pending' | 'active' | 'suspended';
+
+export type TGroupCycleStatus = 'pending' | 'completed' | 'delayed';
+
+export type TGroupUserContributionStatus =
+  | 'paid'
+  | 'not_paid'
+  | 'not_confirmed'
+  | 'defaulted';
+
+export type TGroupUserDefaultReason =
+  | 'missed_contribution'
+  | 'delayed_contribution'
+  | 'disappeared_after_payout';

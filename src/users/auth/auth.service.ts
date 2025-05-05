@@ -1,3 +1,4 @@
+import { Request, Response } from 'express';
 import { WhereOptions } from 'sequelize';
 import { InjectModel } from '@nestjs/sequelize';
 import {
@@ -12,18 +13,25 @@ import {
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import * as speakeasy from 'speakeasy';
+import { parsePhoneNumberFromString } from 'libphonenumber-js';
+import { getCountryData, type TCountryCode } from 'countries-list';
 
 import {
   JWT_REFRESH_TOKEN_EXP,
   JWT_REFRESH_TOKEN_SECRET,
   TIME_IN,
-  SIGN_UP_SESSION,
-  PASSWORD_SESSION,
   APP_NAME,
-  USER_2FA,
   SID_TTL,
   TFASID_TTL,
+  REFRESH_TOKEN,
+  TFASID,
+  SID,
 } from 'src/lib/constants';
+import {
+  SIGN_UP_SESSION,
+  PASSWORD_SESSION,
+  USER_2FA,
+} from 'src/lib/services/cache/cache-keys';
 import { CacheService, FirebaseService } from 'src/lib/services';
 
 import { LoginUserDto, NewPasswordDto, CodeDto, OauthDto } from './dto';
@@ -63,7 +71,11 @@ export class AuthService {
     });
   }
 
-  async handleSocialLogin(dto: OauthDto, deviceInfo: IDeviceInfo) {
+  async handleSocialLogin(
+    dto: OauthDto,
+    deviceInfo: IDeviceInfo,
+    res: Response,
+  ) {
     const user = await this.firebaseService.validateUserWithIdToken(
       dto.idToken,
     );
@@ -86,28 +98,38 @@ export class AuthService {
       })
     )[0];
 
-    await user.update({ sessionId: session.id });
-
     // Check if 2FA is enabled for user
     if (session.twoFactorEnabled && session.twoFactorSecret) {
       await this.cache.set(USER_2FA(user.id), user, TFASID_TTL);
 
-      const TFASID = encrypt(user.id);
+      res.cookie(TFASID, encrypt(user.id), {
+        httpOnly: true,
+        secure: true,
+        sameSite: 'none',
+        maxAge: TFASID_TTL,
+      });
 
       return {
-        TFASID,
         is2FARequired: true,
       };
     }
 
+    res.cookie(REFRESH_TOKEN, encrypted_refresh_token, {
+      httpOnly: true,
+      secure: true,
+      sameSite: 'none',
+      maxAge: this.REFRESH_TOKEN_TTL,
+    });
+
     return {
       user,
       access_token,
-      refresh_token: encrypted_refresh_token,
     };
   }
 
-  async signUp(dto: CreateUserDto, sessionId: string) {
+  async signUp(dto: CreateUserDto, req: Request, res: Response) {
+    const sessionId = req.cookies?.[SID];
+
     // Check if there's an active signup session that hasn't completed verification.
     const signUpSession = await this.cache.get<CreateUserDto>(
       SIGN_UP_SESSION(decrypt(sessionId)),
@@ -140,14 +162,28 @@ export class AuthService {
         'Error sending verification code, try again.',
       );
 
-    const session = encrypt(dto.phoneNumber);
+    const parsedPhoneNumber = parsePhoneNumberFromString(dto.phoneNumber);
+    const countryCode = parsedPhoneNumber.country as TCountryCode;
+
+    const { name: countryName, currency } = getCountryData(countryCode);
+
+    dto = {
+      ...dto,
+      country: dto.country || countryName,
+      defaultCurrency: currency[0],
+    } as CreateUserDto;
 
     await this.cache.set(SIGN_UP_SESSION(dto.phoneNumber), dto, SID_TTL);
 
-    return session;
+    res.cookie(SID, encrypt(dto.phoneNumber), {
+      secure: true,
+      httpOnly: true,
+      sameSite: 'none',
+      maxAge: SID_TTL,
+    });
   }
 
-  async resendSignUpVerificationCode(sessionId: string) {
+  async resendSignUpVerificationCode(sessionId: string, res: Response) {
     const decrypted = decrypt(sessionId);
 
     const signUpSession = await this.cache.get<CreateUserDto>(
@@ -170,13 +206,19 @@ export class AuthService {
 
     await this.cache.set(SIGN_UP_SESSION(decrypted), signUpSession, SID_TTL);
 
-    return sessionId;
+    res.cookie(SID, sessionId, {
+      httpOnly: true,
+      secure: true,
+      sameSite: 'none',
+      maxAge: SID_TTL,
+    });
   }
 
   async verifyAccount(
     sessionId: string,
     dto: CodeDto,
     deviceInfo: IDeviceInfo,
+    res: Response,
   ) {
     const signUpSession = await this.cache.get<CreateUserDto>(
       SIGN_UP_SESSION(decrypt(sessionId)),
@@ -197,7 +239,20 @@ export class AuthService {
       throw new ForbiddenException('Expired or incorrect code, try again.');
     }
 
-    return await this.createVerifiedUser(signUpSession, deviceInfo);
+    const { refresh_token, ...data } = await this.createVerifiedUser(
+      signUpSession,
+      deviceInfo,
+    );
+
+    res.clearCookie(SID);
+    res.cookie(REFRESH_TOKEN, refresh_token, {
+      httpOnly: true,
+      secure: true,
+      sameSite: 'none',
+      maxAge: this.REFRESH_TOKEN_TTL,
+    });
+
+    return data;
   }
 
   private async createVerifiedUser(
@@ -222,7 +277,7 @@ export class AuthService {
 
       const encrypted_refresh_token = encrypt(refresh_token);
 
-      const session = await this.sessionModel.create(
+      await this.sessionModel.create(
         {
           userId: user.id,
           refresh_token: encrypted_refresh_token,
@@ -233,8 +288,6 @@ export class AuthService {
         },
         { transaction },
       );
-
-      await user.update({ sessionId: session.id }, { transaction });
 
       await transaction.commit();
       await this.cache.delete(SIGN_UP_SESSION(signUpSession.phoneNumber));
@@ -290,7 +343,7 @@ export class AuthService {
     });
   }
 
-  async login(dto: LoginUserDto, deviceInfo: IDeviceInfo) {
+  async login(dto: LoginUserDto, deviceInfo: IDeviceInfo, res: Response) {
     const user = await this.userModel.findOne({
       where: { phoneNumber: dto.phoneNumber, provider: 'credentials' },
     });
@@ -306,13 +359,17 @@ export class AuthService {
     });
 
     // Check if 2FA is enabled for user
-    if (session.twoFactorEnabled && session.twoFactorSecret) {
+    if (session && session.twoFactorEnabled && session.twoFactorSecret) {
       await this.cache.set(USER_2FA(user.id), user, TFASID_TTL);
 
-      const TFASID = encrypt(user.id);
+      res.cookie(TFASID, encrypt(user.id), {
+        httpOnly: true,
+        secure: true,
+        sameSite: 'none',
+        maxAge: TFASID_TTL,
+      });
 
       return {
-        TFASID,
         is2FARequired: true,
       };
     }
@@ -324,13 +381,22 @@ export class AuthService {
 
     const encrypted_refresh_token = encrypt(refresh_token);
 
-    const currentDevices = session.loggedInDevices || [];
+    const currentDevices = session?.loggedInDevices || [];
     const deviceAlreadyExists = currentDevices.includes(deviceInfo.device);
     const updatedDevices = deviceAlreadyExists
       ? currentDevices
       : [...currentDevices, deviceInfo.device];
 
-    await session.update({
+    // await session.update({
+    //   refresh_token: encrypted_refresh_token,
+    //   lastLoggedIn: new Date(),
+    //   deviceIpAddress: deviceInfo.ip,
+    //   deviceLastLoggedIn: deviceInfo.device,
+    //   loggedInDevices: updatedDevices,
+    // });
+
+    await this.sessionModel.upsert({
+      userId: user.id,
       refresh_token: encrypted_refresh_token,
       lastLoggedIn: new Date(),
       deviceIpAddress: deviceInfo.ip,
@@ -338,10 +404,16 @@ export class AuthService {
       loggedInDevices: updatedDevices,
     });
 
+    res.cookie(REFRESH_TOKEN, encrypted_refresh_token, {
+      httpOnly: true,
+      secure: true,
+      sameSite: 'none',
+      maxAge: this.REFRESH_TOKEN_TTL,
+    });
+
     return {
       user,
       access_token,
-      refresh_token: encrypted_refresh_token,
     };
   }
 
@@ -349,6 +421,7 @@ export class AuthService {
     sessionId: string,
     dto: CodeDto,
     deviceInfo: IDeviceInfo,
+    res: Response,
   ) {
     const decrypted = decrypt(sessionId);
 
@@ -391,14 +464,21 @@ export class AuthService {
 
     await this.cache.delete(USER_2FA(decrypted));
 
+    res.clearCookie(TFASID);
+    res.cookie(REFRESH_TOKEN, encrypted_refresh_token, {
+      httpOnly: true,
+      secure: true,
+      sameSite: 'none',
+      maxAge: this.REFRESH_TOKEN_TTL,
+    });
+
     return {
       user,
       access_token,
-      refresh_token: encrypted_refresh_token,
     };
   }
 
-  forgotPassword = async (dto: ForgotPasswordDto) => {
+  forgotPassword = async (dto: ForgotPasswordDto, res: Response) => {
     const user = await this.userModel.findOne({
       where: {
         phoneNumber: dto.phoneNumber,
@@ -418,18 +498,24 @@ export class AuthService {
 
     await this.cache.set(PASSWORD_SESSION(dto.phoneNumber), dto, SID_TTL);
 
-    const session = encrypt(dto.phoneNumber);
+    res.cookie(SID, encrypt(dto.phoneNumber), {
+      httpOnly: true,
+      secure: true,
+      sameSite: 'none',
+      maxAge: SID_TTL,
+    });
 
-    return {
-      session,
-      message: `A code has been sent to ${obscurePhoneNumber(dto.phoneNumber)}`,
-    };
+    return `A code has been sent to ${obscurePhoneNumber(dto.phoneNumber)}`;
   };
 
-  resendForgotPasswordCode = (sessionId: string) =>
-    this.forgotPassword({ phoneNumber: decrypt(sessionId) });
+  resendForgotPasswordCode = (sessionId: string, res: Response) =>
+    this.forgotPassword({ phoneNumber: decrypt(sessionId) }, res);
 
-  async verifyForgotPasswordCode(sessionId: string, dto: CodeDto) {
+  async verifyForgotPasswordCode(
+    sessionId: string,
+    dto: CodeDto,
+    res: Response,
+  ) {
     const passwordSession = await this.cache.get<ForgotPasswordDto>(
       PASSWORD_SESSION(decrypt(sessionId)),
     );
@@ -451,10 +537,15 @@ export class AuthService {
       SID_TTL,
     );
 
-    return sessionId;
+    res.cookie(SID, sessionId, {
+      httpOnly: true,
+      secure: true,
+      sameSite: 'none',
+      maxAge: SID_TTL,
+    });
   }
 
-  async resetPassword(sessionId: string, dto: NewPasswordDto) {
+  async resetPassword(sessionId: string, dto: NewPasswordDto, res: Response) {
     const decrypted = decrypt(sessionId);
 
     const passwordSession = await this.cache.get<ForgotPasswordDto>(
@@ -475,6 +566,8 @@ export class AuthService {
 
     await user.update({ password: dto.new_password });
     await this.cache.delete(PASSWORD_SESSION(decrypted));
+
+    res.clearCookie(SID);
   }
 
   refreshToken = async (refresh_token: string) => {
@@ -506,7 +599,7 @@ export class AuthService {
     return { access_token };
   };
 
-  async logout(refresh_token: string) {
+  async logout(refresh_token: string, res: Response) {
     const activeSession = await this.sessionModel.findOne({
       where: { refresh_token },
     });
@@ -517,6 +610,8 @@ export class AuthService {
       refresh_token: null,
       twoFactorLoggedIn: false,
     });
+
+    res.clearCookie(REFRESH_TOKEN);
   }
 
   generate2FASecret(name?: string, length?: number) {

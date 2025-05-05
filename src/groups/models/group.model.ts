@@ -5,46 +5,72 @@ import {
   DataType,
   ForeignKey,
   BelongsTo,
-  HasMany,
   BelongsToMany,
+  HasMany,
+  DefaultScope,
+  HasOne,
+  Scopes,
 } from 'sequelize-typescript';
 
-import { Chat } from 'src/chats/models/chat.model';
-import { BankDetail } from 'src/users/models';
-import { UserGroup } from 'src/users/models/user-group.model';
 import { User } from 'src/users/models/user.model';
+import { UserGroupMembership } from './user-group-membership.model';
+import {
+  TGroupCustomFrequency,
+  TGroupFrequency,
+  TGroupPayoutDay,
+  TGroupPayoutOrder,
+  TGroupRole,
+  TGroupStatus,
+} from 'src/lib/interface';
+import { getRandomBackgroundImgUrl } from 'src/lib/utils';
+import { Message } from 'src/messages/models';
 
-@Table({ tableName: 'groups' })
+export const GROUPS_TABLE = 'groups';
+
+@DefaultScope(() => ({
+  include: [
+    {
+      model: User.scope('limited'),
+      as: 'members',
+      through: {
+        attributes: [],
+      },
+    },
+  ],
+}))
+@Scopes(() => ({
+  public: {
+    include: { model: User.scope('limited'), as: 'owner' },
+    attributes: [
+      'id',
+      'name',
+      'picture',
+      'status',
+      'targetMemberCount',
+      'contributionAmount',
+      'defaultCurrency',
+      'createdAt',
+    ],
+  },
+}))
+@Table({ tableName: GROUPS_TABLE, timestamps: true })
 export class Group extends Model<Group> {
   @Column({
     type: DataType.UUID,
     primaryKey: true,
-    unique: true,
     defaultValue: DataType.UUIDV4,
   })
-  readonly id!: string;
+  id!: string;
 
   @Column({
     type: DataType.STRING,
     allowNull: false,
+    unique: {
+      name: 'name',
+      msg: "Oops! That name is so cool, but it's been taken😉.",
+    },
   })
-  groupName: string;
-
-  @ForeignKey(() => User)
-  @Column({
-    type: DataType.UUID,
-    allowNull: false,
-  })
-  adminId: number;
-
-  @BelongsTo(() => User)
-  admin: User;
-
-  @Column({
-    type: DataType.INTEGER,
-    allowNull: false,
-  })
-  max_number: number;
+  name: string;
 
   @Column({
     type: DataType.STRING,
@@ -55,28 +81,145 @@ export class Group extends Model<Group> {
   @Column({
     type: DataType.STRING,
     allowNull: true,
+    defaultValue: () => getRandomBackgroundImgUrl(),
   })
-  bannerUrl: string;
+  picture: string;
+
+  @ForeignKey(() => User) // Note to self:  Foreign key is actually pointing to user's primary key
+  @Column({
+    type: DataType.UUID,
+    allowNull: false,
+  })
+  ownerId: string; // This field might be used to directly fetch all groups created/owned by a user
+
+  @BelongsTo(() => User)
+  owner: User;
+
+  @BelongsToMany(() => User, () => UserGroupMembership)
+  members: User[];
+
+  @HasOne(() => UserGroupMembership, { foreignKey: 'groupId' })
+  ownerMembership: UserGroupMembership;
+
+  @Column({
+    type: DataType.INTEGER,
+    allowNull: false,
+  })
+  targetMemberCount: number;
+
+  @Column({
+    type: DataType.INTEGER,
+    allowNull: true,
+  })
+  openSlots: number;
 
   @Column({
     type: DataType.FLOAT,
     allowNull: false,
   })
-  contributionGoal: number;
+  contributionAmount: number;
 
-  @ForeignKey(() => BankDetail)
   @Column({
-    type: DataType.UUID,
+    type: DataType.FLOAT,
     allowNull: true,
   })
-  defaultDepositAccountId: string;
+  defaultFee: number;
 
-  @BelongsTo(() => BankDetail, 'deposit_account')
-  depositAccount: BankDetail;
+  @Column({
+    type: DataType.ENUM('percentage', 'fiat'),
+    allowNull: true,
+  })
+  defaultFeeUnit: 'percentage' | 'fiat';
 
-  @BelongsToMany(() => User, () => UserGroup)
-  members: User[];
+  @Column({
+    type: DataType.ENUM<TGroupRole>('admin', 'member'),
+    defaultValue: 'admin',
+  })
+  holder: TGroupRole;
 
-  @HasMany(() => Chat)
-  chats: Chat[];
+  @Column({
+    type: DataType.ENUM<TGroupStatus>(
+      'pending',
+      'active',
+      'completed',
+      'cancelled',
+    ),
+    defaultValue: 'pending',
+  })
+  status: TGroupStatus;
+
+  @Column({
+    type: DataType.ENUM<TGroupPayoutDay>(
+      'sunday',
+      'monday',
+      'tuesday',
+      'wednesday',
+      'thursday',
+      'friday',
+      'saturday',
+    ),
+    defaultValue: 'friday',
+  })
+  payoutDay: TGroupPayoutDay;
+
+  @Column({
+    type: DataType.ENUM<TGroupFrequency>(
+      'daily',
+      'weekly',
+      'bi-weekly',
+      'monthly',
+      'custom',
+    ),
+    defaultValue: 'daily',
+  })
+  frequency: TGroupFrequency;
+
+  @Column({
+    type: DataType.JSONB,
+    allowNull: true,
+    defaultValue: {},
+  })
+  customFrequency: TGroupCustomFrequency;
+
+  @Column({
+    type: DataType.BOOLEAN,
+    defaultValue: false,
+  })
+  startImmediately: boolean;
+
+  @Column({
+    type: DataType.ENUM<TGroupPayoutOrder>('random', 'first-come-first-serve'),
+    defaultValue: 'random',
+  })
+  payoutOrder: TGroupPayoutOrder;
+
+  @Column({
+    type: DataType.STRING,
+    allowNull: false,
+  })
+  defaultCurrency: string;
+
+  @Column({
+    type: DataType.BOOLEAN,
+    defaultValue: false,
+  })
+  repeat: boolean;
+
+  @Column({
+    type: DataType.BOOLEAN,
+    defaultValue: false,
+  })
+  isPublic: boolean;
+
+  @HasMany(() => Message, { foreignKey: 'groupId' })
+  messages: Message[];
+
+  toJSON() {
+    const group = super.toJSON();
+
+    delete group.ownerId;
+    delete group.ownerMembership;
+
+    return group;
+  }
 }

@@ -1,20 +1,32 @@
+import { Model, ModelCtor } from 'sequelize-typescript';
 import { UnauthorizedException } from '@nestjs/common';
 import { Request } from 'express';
 import * as crypto from 'crypto-js';
 
 import {
+  BACKGROUND_IMGS_COLLECTIONS_LIST,
+  BACKGROUND_IMGS_NAME_LIST,
   JWT_ACCESS_TOKEN_SECRET,
   PROFILE_IMGS_COLLECTIONS_LIST,
   PROFILE_IMGS_NAME_LIST,
 } from '../constants';
-import { Days, Hours, Minutes, TimeInMilliseconds } from '../interface';
+import {
+  Days,
+  Hours,
+  Minutes,
+  PaginateOptions,
+  TimeInMilliseconds,
+} from '../interface';
 import { ConfigService } from '@nestjs/config';
 
 const config = new ConfigService();
 
 /** Randomly generates image urls on https://api.dicebear.com */
 export const getRandomAvatarUrl = () =>
-  `https://api.dicebear.com/6.x/${PROFILE_IMGS_COLLECTIONS_LIST[Math.floor(Math.random() * PROFILE_IMGS_COLLECTIONS_LIST?.length)]}/svg?seed=${PROFILE_IMGS_NAME_LIST[Math.floor(Math.random() * PROFILE_IMGS_NAME_LIST?.length)]}`;
+  `https://api.dicebear.com/6.x/${PROFILE_IMGS_COLLECTIONS_LIST[Math.floor(Math.random() * PROFILE_IMGS_COLLECTIONS_LIST.length)]}/svg?seed=${PROFILE_IMGS_NAME_LIST[Math.floor(Math.random() * PROFILE_IMGS_NAME_LIST.length)]}`;
+
+export const getRandomBackgroundImgUrl = () =>
+  `https://api.dicebear.com/6.x/${BACKGROUND_IMGS_COLLECTIONS_LIST[Math.floor(Math.random() * BACKGROUND_IMGS_COLLECTIONS_LIST.length)]}/svg?seed=${BACKGROUND_IMGS_NAME_LIST[Math.floor(Math.random() * BACKGROUND_IMGS_NAME_LIST.length)]}`;
 
 /**
  * Multiplies all the number arguments and returns their product
@@ -117,24 +129,62 @@ export const decrypt = (
   }
 };
 
-export const getExampleResponseObject = ({
-  statusCode = 200,
-  data = {},
-}: {
-  statusCode?: number;
-  data?: object;
-}) => {
-  if ((Array.isArray(data) && data.length) || Object.keys(data).length)
-    return {
-      statusCode,
-      message: 'Success',
-      data,
-      timestamp: '2025-04-14T13:47:23.456Z',
-    };
+export function shuffleArray<T>(array: T[]): T[] {
+  return array
+    .map((value) => ({ value, sort: Math.random() }))
+    .sort((a, b) => a.sort - b.sort)
+    .map(({ value }) => value);
+}
+
+export async function paginate<T extends Model<T>>(
+  model: ModelCtor<T>,
+  {
+    page = 1,
+    limit,
+    defaultLimit = 10,
+    maxLimit = 20,
+    options = {},
+    scope,
+  }: PaginateOptions<T>,
+) {
+  const offset = (page - 1) * limit;
+  const cappedLimit = Math.min(limit || defaultLimit, maxLimit);
+
+  const { rows, count } = await model.scope(scope).findAndCountAll({
+    ...options,
+    limit: cappedLimit,
+    offset,
+    distinct: true,
+  });
 
   return {
-    statusCode,
-    message: 'Success',
-    timestamp: '2025-04-14T13:47:23.456Z',
+    data: rows,
+    pagination: {
+      total: count,
+      page,
+      limit: cappedLimit,
+      totalPages: Math.ceil(count / cappedLimit),
+    },
   };
-};
+}
+
+export function generateCacheKeyFromQuery(prefix: string, query: any): string {
+  const sorted = JSON.stringify(sortObject(query));
+  const hash = crypto.MD5(sorted).toString();
+  return `${prefix}:${hash}`;
+}
+
+function sortObject(obj: any): any {
+  if (Array.isArray(obj)) return obj.map(sortObject);
+
+  if (obj !== null && typeof obj === 'object') {
+    return Object.keys(obj)
+      .sort()
+      .reduce((result: any, key) => {
+        result[key] = sortObject(obj[key]);
+        return result;
+      }, {});
+  }
+
+  return obj;
+}

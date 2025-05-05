@@ -24,7 +24,7 @@ export const REFRESH_TOKEN = 'refresh_token';
 export const TFASID = 'TFASID';
 
 /** Session Id's `ttl` (time to live) in milliseconds
- * @description Mostly influenced by Twilio verify's code `ttl`
+ * @description Mostly influenced by Twilio verify's code `ttl` - *10 minutes*
  * @constant
  */
 export const SID_TTL = TIME_IN.minutes[10];
@@ -83,3 +83,29 @@ export const PROFILE_IMGS_COLLECTIONS_LIST = [
   'adventurer-neutral',
   'fun-emoji',
 ];
+
+export const BACKGROUND_IMGS_COLLECTIONS_LIST = ['identicons', 'shapes'];
+
+export const BACKGROUND_IMGS_NAME_LIST = [
+  'Sara',
+  'Caleb',
+  'Aiden',
+  'Liliana',
+  'Ryker',
+  'Ryan',
+  'Destiny',
+  'Sarah',
+  'Eden',
+  'Sawyer',
+  'Sadie',
+  'Liam',
+  'Caleb',
+  'Emery',
+  'Jameson',
+];
+
+export const EXAMPLE_RESPONSE_OBJ = {
+  statusCode: 200,
+  message: 'Success',
+  data: {},
+};

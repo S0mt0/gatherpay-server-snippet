@@ -34,6 +34,10 @@ export class BankDetailsDto {
   @MinLength(5)
   accountNumber: string;
 
+  @IsString({ message: '"defaultCurrency" is required' })
+  @MinLength(1)
+  defaultCurrency: string;
+
   @IsString()
   @IsOptional()
   @MinLength(3)

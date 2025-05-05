@@ -31,7 +31,8 @@
     "sq:migrate:dev": "DEBUG=sequelize:* sequelize-cli db:migrate --debug",
     "sq:migrate:undo": "sequelize-cli db:migrate:undo",
     "sq:migrate:undo:all": "sequelize-cli db:migrate:undo:all",
-    "sq:seed": "sequelize-cli db:seed:all",
+    "sq:seed:all": "sequelize-cli db:seed:all",
+    "sq:seed": "sequelize-cli db:seed --seed",
     "sq:seed:undo": "sequelize-cli db:seed:undo",
     "sq:seed:undo:all": "sequelize-cli db:seed:undo:all",
     "sq:generate:migration": "sequelize-cli migration:generate --name",
@@ -50,10 +51,12 @@
     "@nestjs/jwt": "^11.0.0",
     "@nestjs/mapped-types": "^2.1.0",
     "@nestjs/platform-express": "^10.0.0",
+    "@nestjs/platform-socket.io": "^11.1.0",
     "@nestjs/schedule": "^4.1.2",
     "@nestjs/sequelize": "^10.0.1",
     "@nestjs/swagger": "^8.1.0",
     "@nestjs/throttler": "^6.3.0",
+    "@nestjs/websockets": "^11.1.0",
     "@types/multer": "^1.4.12",
     "@types/randomatic": "^3.1.5",
     "argon2": "^0.41.1",
@@ -87,7 +90,8 @@
     "speakeasy": "^2.0.0",
     "twilio": "^5.5.1",
     "ua-parser-js": "^2.0.3",
-    "useragent": "^2.3.0"
+    "useragent": "^2.3.0",
+    "uuid": "^11.1.0"
   },
   "devDependencies": {
     "@nestjs/cli": "^10.0.0",

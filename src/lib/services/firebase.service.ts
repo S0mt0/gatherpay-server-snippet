@@ -1,4 +1,9 @@
-import { ForbiddenException, Injectable, OnModuleInit } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+  OnModuleInit,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectModel } from '@nestjs/sequelize';
 import * as admin from 'firebase-admin';
@@ -53,8 +58,6 @@ export class FirebaseService implements OnModuleInit {
 
     const provider = sign_in_provider as AllowedProviders;
 
-    console.log({ provider });
-
     if (oauthUser) {
       if (provider !== oauthUser.provider)
         throw new ForbiddenException(
@@ -65,7 +68,7 @@ export class FirebaseService implements OnModuleInit {
     } else {
       // If user doesn't already exist, then create a new user
       if (!SUPPORTED_PROVIDERS.includes(provider))
-        throw new ForbiddenException(
+        throw new BadRequestException(
           'Please register using either of google, facebook, apple or your credentials (phone number and password)',
         );
 
@@ -86,5 +89,13 @@ export class FirebaseService implements OnModuleInit {
     }
 
     return oauthUser;
+  }
+
+  async sendPushNotification(toFcmToken: string, title: string, body: string) {
+    const message = {
+      notification: { title, body },
+      token: toFcmToken,
+    };
+    await admin.messaging().send(message);
   }
 }

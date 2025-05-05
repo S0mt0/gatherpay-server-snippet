@@ -19,16 +19,20 @@ export const BANK_DETAILS_TABLE = 'bank_details';
       unique: true,
       fields: ['bankName', 'accountNumber'],
     },
+    {
+      name: 'unique_accountNumber_bankSortCode_combo',
+      unique: true,
+      fields: ['bankSortCode', 'accountNumber'],
+    },
   ],
 })
 export class BankDetail extends Model<BankDetail> {
   @Column({
     type: DataType.UUID,
     primaryKey: true,
-    unique: true,
     defaultValue: DataType.UUIDV4,
   })
-  readonly id!: string;
+  id!: string;
 
   @Column({
     type: DataType.STRING,
@@ -47,6 +51,12 @@ export class BankDetail extends Model<BankDetail> {
     allowNull: true,
   })
   accountName: string;
+
+  @Column({
+    type: DataType.STRING,
+    allowNull: false,
+  })
+  defaultCurrency: string;
 
   @Column({
     type: DataType.STRING,

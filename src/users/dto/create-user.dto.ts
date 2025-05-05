@@ -6,6 +6,7 @@ import {
   Validate,
   ValidatorConstraint,
   ValidatorConstraintInterface,
+  IsOptional,
 } from 'class-validator';
 import { parsePhoneNumberFromString } from 'libphonenumber-js';
 
@@ -67,6 +68,7 @@ export class CreateUserDto {
   /**
    * Validation for supported countries is not yet implemented, so it'll be done using phone numbers for now.
    */
-  @IsString({ message: '"country" is required' })
+  @IsOptional()
+  @IsString()
   country: string;
 }

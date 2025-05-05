@@ -9,9 +9,9 @@ import {
   HasOne,
   BelongsToMany,
   BeforeValidate,
-  BelongsTo,
   BeforeUpdate,
   DefaultScope,
+  BelongsTo,
   Scopes,
 } from 'sequelize-typescript';
 import * as argon from 'argon2';
@@ -21,9 +21,9 @@ import { getRandomAvatarUrl } from 'src/lib/utils';
 
 import { Session } from '../auth/models/session.model';
 import { Group } from 'src/groups/models/group.model';
-import { UserGroup } from './user-group.model';
-import { AllowedProviders } from 'src/lib/interface';
+import { AllowedProviders, TRole } from 'src/lib/interface';
 import { BankDetail } from './bank-detail.model';
+import { UserGroupMembership } from 'src/groups/models';
 
 export const USERS_TABLE = 'users';
 
@@ -32,14 +32,23 @@ export const USERS_TABLE = 'users';
     {
       model: BankDetail,
       as: 'defaultBankDetail',
-      attributes: { exclude: ['userId'] },
+      attributes: { exclude: ['id', 'userId'] },
     },
   ],
 }))
 @Scopes(() => ({
   limited: {
-    attributes: ['id', 'provider', 'username'],
-    include: [],
+    attributes: ['id', 'firstName', 'lastName', 'picture'],
+  },
+  profile: {
+    include: [
+      {
+        model: BankDetail,
+        as: 'defaultBankDetail',
+        attributes: { exclude: ['id', 'userId'] },
+      },
+    ],
+    attributes: ['firstName', 'lastName', 'username', 'picture', 'bio'],
   },
 }))
 @Table({
@@ -52,10 +61,9 @@ export class User extends Model<User> {
   @Column({
     type: DataType.UUID,
     primaryKey: true,
-    unique: true,
     defaultValue: DataType.UUIDV4,
   })
-  readonly id!: string;
+  id: string;
 
   @Column({
     type: DataType.STRING,
@@ -169,6 +177,12 @@ export class User extends Model<User> {
   kyc_verified: boolean;
 
   @Column({
+    type: DataType.ENUM<TRole>('x-admin', 'user'),
+    defaultValue: 'user',
+  })
+  role: TRole;
+
+  @Column({
     type: DataType.BOOLEAN,
     defaultValue: true,
   })
@@ -186,6 +200,19 @@ export class User extends Model<User> {
   })
   getAnnouncements: boolean;
 
+  @Column({
+    type: DataType.BOOLEAN,
+    defaultValue: false,
+  })
+  autoAcceptGroupInvite: boolean;
+
+  @Column({
+    type: DataType.BOOLEAN,
+    allowNull: true,
+  })
+  /** Firebase Cloud Messaging token for offline push notifications */
+  fcmToken: string;
+
   @ForeignKey(() => BankDetail)
   @Column({
     type: DataType.UUID,
@@ -193,23 +220,19 @@ export class User extends Model<User> {
   })
   bankDetailId: string;
 
-  @BelongsTo(() => BankDetail)
+  @BelongsTo(() => BankDetail, { foreignKey: 'bankDetailId' })
   defaultBankDetail: BankDetail;
 
-  @HasMany(() => BankDetail)
+  @HasMany(() => BankDetail, { foreignKey: 'userId' })
   allBankDetails: BankDetail[];
 
-  @BelongsToMany(() => Group, () => UserGroup)
-  groups: Group[];
+  @HasMany(() => Group, { foreignKey: 'ownerId' })
+  ownedGroups: Group[];
 
-  @ForeignKey(() => Session)
-  @Column({
-    type: DataType.UUID,
-    allowNull: true,
-  })
-  sessionId: string;
+  @BelongsToMany(() => Group, () => UserGroupMembership)
+  memberGroups: Group[];
 
-  @HasOne(() => Session)
+  @HasOne(() => Session, { foreignKey: 'userId' })
   session: Session;
 
   async verifyPassword(password: string) {
@@ -266,8 +289,8 @@ export class User extends Model<User> {
     delete user.terms_of_service;
     delete user.bankDetailId;
     delete user.updatedAt;
-    delete user.sessionId;
     delete user.deletedAt;
+    delete user.session;
 
     return user;
   }

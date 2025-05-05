@@ -15,12 +15,11 @@ import { User } from './models/user.model';
 import { AuthService } from './auth';
 import { Session } from './auth/models';
 import { CacheService, TwilioService } from 'src/lib/services';
+import { SID_TTL, TFASID_TTL } from 'src/lib/constants';
 import {
-  SID_TTL,
-  SIGN_UP_SESSION,
-  TFASID_TTL,
+  PHONE_CHANGE_SESSION,
   USER_2FA,
-} from 'src/lib/constants';
+} from 'src/lib/services/cache/cache-keys';
 import { decrypt, encrypt } from 'src/lib/utils';
 import { CodeDto, UpdatePasswordDto } from './auth/dto';
 import {
@@ -155,14 +154,18 @@ export class UsersService {
 
     const session = encrypt(dto.phoneNumber);
 
-    await this.cacheService.set(SIGN_UP_SESSION(dto.phoneNumber), dto, SID_TTL);
+    await this.cacheService.set(
+      PHONE_CHANGE_SESSION(dto.phoneNumber),
+      dto,
+      SID_TTL,
+    );
 
     return session;
   }
   async verifyPhoneNumberChange(sessionId: string, dto: CodeDto, user: User) {
     const phoneChangeSession =
       await this.cacheService.get<UpdatePhoneNumberDto>(
-        SIGN_UP_SESSION(decrypt(sessionId)),
+        PHONE_CHANGE_SESSION(decrypt(sessionId)),
       );
 
     if (!phoneChangeSession) {
@@ -207,6 +210,7 @@ export class UsersService {
     if (count >= 3) {
       throw new BadRequestException('You can only add up to 3 bank details');
     }
+
     const detailExists = await this.bankDetailModel.findOne({
       where: {
         bankName: dto.bankName,
@@ -232,6 +236,7 @@ export class UsersService {
 
       // Set as default if first bank detail
       if (count === 0 || !user.bankDetailId) {
+        console.log(true);
         await user.update({ bankDetailId: bank_detail.id }, { transaction });
       }
 
@@ -249,7 +254,10 @@ export class UsersService {
       where: { id, userId: user.id },
     });
 
-    if (!bankDetail) throw new NotFoundException('Bank detail not found');
+    if (!bankDetail)
+      throw new NotFoundException(
+        'We could not find that Bank detail in our records',
+      );
 
     await user.update({ bankDetailId: bankDetail.id });
   }
@@ -262,6 +270,12 @@ export class UsersService {
     const bank_detail = await this.bankDetailModel.findOne({
       where: { id, userId },
     });
+
+    if (!bank_detail)
+      throw new NotFoundException(
+        'We could not find that Bank detail in our records',
+      );
+
     return { bank_detail };
   }
 
@@ -270,7 +284,10 @@ export class UsersService {
       where: { id, userId },
     });
 
-    if (!bank_detail) throw new NotFoundException('Bank detail not found');
+    if (!bank_detail)
+      throw new NotFoundException(
+        'We could not find that Bank detail in our records',
+      );
 
     await bank_detail.update(dto);
 
@@ -287,7 +304,9 @@ export class UsersService {
       });
 
       if (!bankDetail) {
-        throw new NotFoundException('Bank detail not found');
+        throw new NotFoundException(
+          'We could not find that Bank detail in our records',
+        );
       }
 
       // 2. Check if this is the current default bank detail
@@ -296,14 +315,14 @@ export class UsersService {
       // 3. Delete the bank detail
       await bankDetail.destroy({ transaction });
 
-      // 4. Handle default bank detail reassignment if needed
+      // 4. Handle default bank detail reassignment
       if (isDefault) {
         // Get remaining bank details (excluding the one being deleted)
         const remainingDetails = await this.bankDetailModel.findAll({
           where: { userId: user.id },
-          transaction,
           order: [['createdAt', 'ASC']],
           limit: 1,
+          transaction,
         });
 
         const newDefaultId =
