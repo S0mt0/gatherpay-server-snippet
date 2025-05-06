@@ -26,7 +26,7 @@ export class UserContribution extends Model<UserContribution> {
   id: string;
 
   @Column({
-    type: DataType.INTEGER,
+    type: DataType.FLOAT,
     allowNull: false,
   })
   amount: number;
