@@ -33,6 +33,8 @@
     "sq:migrate:undo:all": "sequelize-cli db:migrate:undo:all",
     "sq:seed:all": "sequelize-cli db:seed:all",
     "sq:seed": "sequelize-cli db:seed --seed",
+    "sq:seed:all:prod": "dotenv -e .env.production -- cross-env NODE_ENV=production DEBUG=sequelize:* sequelize-cli db:seed:all",
+    "sq:seed:prod": "dotenv -e .env.production -- cross-env NODE_ENV=production DEBUG=sequelize:* sequelize-cli db:seed --seed",
     "sq:seed:undo": "sequelize-cli db:seed:undo",
     "sq:seed:undo:all": "sequelize-cli db:seed:undo:all",
     "sq:generate:migration": "sequelize-cli migration:generate --name",
