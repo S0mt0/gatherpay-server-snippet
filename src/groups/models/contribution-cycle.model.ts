@@ -36,10 +36,10 @@ export class ContributionCycle extends Model<ContributionCycle> {
     type: DataType.UUID,
     allowNull: false,
   })
-  payoutUserId: string;
+  payoutReceiverId: string;
 
   @BelongsTo(() => User)
-  user: User;
+  payoutReceiver: User;
 
   @ForeignKey(() => Group)
   @Column({
