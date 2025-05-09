@@ -118,7 +118,10 @@ export type TRole = 'x-admin' | 'user';
 
 export type TGroupRole = 'admin' | 'member';
 
-export type TGroupPayoutOrder = 'random' | 'first-come-first-serve';
+export type TGroupPayoutOrder =
+  | 'random'
+  | 'first-come-first-serve'
+  | 'admin-pick';
 
 export type TGroupStatus = 'pending' | 'active' | 'completed' | 'cancelled';
 

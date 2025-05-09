@@ -25,7 +25,7 @@ module.exports = {
         defaultCurrency: 'USD',
         createdAt: now,
         updatedAt: now,
-        ownerId: '01a50a31-81d5-4eae-84e6-4a44daec263e',
+        ownerId: '24e2b5e4-3d38-4e57-89d8-2864813d18c0',
       },
       {
         id: uuidv4(),
@@ -43,7 +43,7 @@ module.exports = {
         defaultCurrency: 'GBP',
         createdAt: now,
         updatedAt: now,
-        ownerId: '1ba3c29a-d721-457e-906c-e39164eef4ff',
+        ownerId: '3dc6d8aa-28fc-4ef6-8054-0db0ff67deab',
       },
       {
         id: uuidv4(),
@@ -61,7 +61,7 @@ module.exports = {
         defaultCurrency: 'KES',
         createdAt: now,
         updatedAt: now,
-        ownerId: '9948d2d6-0fa5-402e-a281-66275be44f3a',
+        ownerId: '6aff5e46-04e1-4cc6-b1bf-057354a4d605',
       },
       {
         id: uuidv4(),
@@ -79,7 +79,7 @@ module.exports = {
         defaultCurrency: 'EUR',
         createdAt: now,
         updatedAt: now,
-        ownerId: '3cd4a2cd-6c05-4ae1-ab42-ef3c5c37deac',
+        ownerId: '9d7e6928-938d-4eff-8ba6-95b5d33ac271',
       },
       {
         id: uuidv4(),
@@ -97,7 +97,7 @@ module.exports = {
         defaultCurrency: 'NGN',
         createdAt: now,
         updatedAt: now,
-        ownerId: '01a50a31-81d5-4eae-84e6-4a44daec263e',
+        ownerId: 'abadf8e9-0b9e-411d-a20c-e005920c0407',
       },
       {
         id: uuidv4(),
@@ -115,7 +115,7 @@ module.exports = {
         defaultCurrency: 'CNY',
         createdAt: now,
         updatedAt: now,
-        ownerId: '1ba3c29a-d721-457e-906c-e39164eef4ff',
+        ownerId: 'aeb8e454-42f9-47a8-8192-146ae4c16d28',
       },
       {
         id: uuidv4(),
@@ -133,7 +133,7 @@ module.exports = {
         defaultCurrency: 'INR',
         createdAt: now,
         updatedAt: now,
-        ownerId: '9948d2d6-0fa5-402e-a281-66275be44f3a',
+        ownerId: 'bafceb41-04a2-432c-97be-f38a26fe2ddb',
       },
       {
         id: uuidv4(),
@@ -151,7 +151,7 @@ module.exports = {
         defaultCurrency: 'USD',
         createdAt: now,
         updatedAt: now,
-        ownerId: 'a876ab28-83c1-4bd5-bee9-c2d2cf1a07b8',
+        ownerId: 'bafceb41-04a2-432c-97be-f38a26fe2ddb',
       },
       {
         id: uuidv4(),
@@ -169,7 +169,7 @@ module.exports = {
         defaultCurrency: 'KES',
         createdAt: now,
         updatedAt: now,
-        ownerId: 'aa1ee486-7b44-4604-bdc6-69ad680a2dbd',
+        ownerId: '6aff5e46-04e1-4cc6-b1bf-057354a4d605',
       },
       {
         id: uuidv4(),
@@ -187,7 +187,7 @@ module.exports = {
         defaultCurrency: 'GBP',
         createdAt: now,
         updatedAt: now,
-        ownerId: '1ba3c29a-d721-457e-906c-e39164eef4ff',
+        ownerId: '3dc6d8aa-28fc-4ef6-8054-0db0ff67deab',
       },
       {
         id: uuidv4(),
@@ -205,7 +205,7 @@ module.exports = {
         defaultCurrency: 'EUR',
         createdAt: now,
         updatedAt: now,
-        ownerId: '3cd4a2cd-6c05-4ae1-ab42-ef3c5c37deac',
+        ownerId: '3dc6d8aa-28fc-4ef6-8054-0db0ff67deab',
       },
       {
         id: uuidv4(),
@@ -223,7 +223,7 @@ module.exports = {
         defaultCurrency: 'USD',
         createdAt: now,
         updatedAt: now,
-        ownerId: '9948d2d6-0fa5-402e-a281-66275be44f3a',
+        ownerId: '3dc6d8aa-28fc-4ef6-8054-0db0ff67deab',
       },
       {
         id: uuidv4(),
@@ -241,7 +241,7 @@ module.exports = {
         defaultCurrency: 'INR',
         createdAt: now,
         updatedAt: now,
-        ownerId: '01a50a31-81d5-4eae-84e6-4a44daec263e',
+        ownerId: 'c9f98204-a0e8-4488-87be-05538c5100e2',
       },
       {
         id: uuidv4(),
@@ -259,7 +259,7 @@ module.exports = {
         defaultCurrency: 'NGN',
         createdAt: now,
         updatedAt: now,
-        ownerId: 'a876ab28-83c1-4bd5-bee9-c2d2cf1a07b8',
+        ownerId: 'f3ff623f-807d-4091-89bb-a535da9a7390',
       },
       {
         id: uuidv4(),
@@ -277,7 +277,7 @@ module.exports = {
         defaultCurrency: 'CNY',
         createdAt: now,
         updatedAt: now,
-        ownerId: 'aa1ee486-7b44-4604-bdc6-69ad680a2dbd',
+        ownerId: 'f3ff623f-807d-4091-89bb-a535da9a7390',
       },
     ];
 

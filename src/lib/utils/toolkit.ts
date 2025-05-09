@@ -168,6 +168,43 @@ export async function paginate<T extends Model<T>>(
   };
 }
 
+// export async function paginate<T extends Model<T>>(
+//   model: ModelCtor<T>,
+//   {
+//     page = 1,
+//     limit,
+//     defaultLimit = 10,
+//     maxLimit = 20,
+//     options = {},
+//     scope,
+//   }: PaginateOptions<T>,
+// ) {
+//   const offset = (page - 1) * limit;
+//   const cappedLimit = Math.min(limit || defaultLimit, maxLimit);
+
+//   const tableName = model.getTableName() as string;
+
+//   const primaryKeyField = model.primaryKeyAttribute || 'id';
+
+//   const { rows, count } = await model.scope(scope).findAndCountAll({
+//     ...options,
+//     limit: cappedLimit,
+//     offset,
+//     distinct: true,
+//     col: `${tableName}.${primaryKeyField}`,
+//   });
+
+//   return {
+//     data: rows,
+//     pagination: {
+//       total: count,
+//       page,
+//       limit: cappedLimit,
+//       totalPages: Math.ceil(count / cappedLimit),
+//     },
+//   };
+// }
+
 export function generateCacheKeyFromQuery(prefix: string, query: any): string {
   const sorted = JSON.stringify(sortObject(query));
   const hash = crypto.MD5(sorted).toString();

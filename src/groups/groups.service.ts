@@ -102,7 +102,6 @@ export class GroupsService {
               ],
             },
           ],
-          attributes: { exclude: ['payoutOrder', 'status'] },
           order: [['memberSince', 'DESC']],
         },
       },
@@ -122,7 +121,7 @@ export class GroupsService {
   }
 
   async findOne(userId: string, groupId: string) {
-    const group = await this.groupModel.findOne({
+    const group = await this.groupModel.scope('private').findOne({
       where: { id: groupId, ownerId: userId },
     });
 

@@ -52,6 +52,14 @@ export const GROUPS_TABLE = 'groups';
       'createdAt',
     ],
   },
+  private: {
+    include: [
+      {
+        model: User.scope('profile'),
+        as: 'owner',
+      },
+    ],
+  },
 }))
 @Table({ tableName: GROUPS_TABLE, timestamps: true })
 export class Group extends Model<Group> {
@@ -188,7 +196,11 @@ export class Group extends Model<Group> {
   startImmediately: boolean;
 
   @Column({
-    type: DataType.ENUM<TGroupPayoutOrder>('random', 'first-come-first-serve'),
+    type: DataType.ENUM<TGroupPayoutOrder>(
+      'random',
+      'first-come-first-serve',
+      'admin-pick',
+    ),
     defaultValue: 'random',
   })
   payoutOrder: TGroupPayoutOrder;
